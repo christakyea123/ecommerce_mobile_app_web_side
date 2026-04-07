@@ -1,0 +1,170 @@
+/* ==========================================================================
+   COMPONENTS — Toast, FAB, Wishlist, Breadcrumbs, Trust Badges, 
+   Recently Viewed, Promo Banner
+   ========================================================================== */
+
+/* ── Promo Banner Strip ────────────────────────────────── */
+.promo-banner {
+  background: linear-gradient(90deg, #131921 0%, #232f3e 40%, #37475a 100%);
+  color: #fff;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  position: relative;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow: hidden;
+}
+.promo-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  animation: promoShine 4s ease-in-out infinite;
+}
+@keyframes promoShine { 0% { left: -100%; } 100% { left: 200%; } }
+.promo-banner .promo-text { display: flex; align-items: center; gap: 8px; }
+.promo-banner .promo-highlight { color: #FFD814; font-weight: 700; }
+.promo-banner .promo-close {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: rgba(255,255,255,0.6);
+  cursor: pointer; padding: 4px; display: flex; align-items: center; transition: color 0.2s;
+}
+.promo-banner .promo-close:hover { color: #fff; }
+
+/* ── Back to Top FAB ───────────────────────────────────── */
+.back-to-top-fab {
+  position: fixed; bottom: 30px; right: 30px;
+  width: 48px; height: 48px;
+  background: #232f3e; color: #fff;
+  border: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 999;
+  opacity: 0; transform: translateY(20px);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+.back-to-top-fab.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.back-to-top-fab:hover { background: var(--accent-color); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+.back-to-top-fab .material-symbols-rounded { font-size: 24px; }
+
+/* ── Toast Notifications ───────────────────────────────── */
+.toast-container {
+  position: fixed; top: 90px; right: 20px; z-index: 99999;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+}
+.toast {
+  pointer-events: auto; min-width: 300px; max-width: 420px;
+  padding: 14px 20px; border-radius: 10px;
+  display: flex; align-items: center; gap: 12px;
+  color: #fff; font-family: var(--font-sans);
+  font-size: 0.95rem; font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  transform: translateX(120%); opacity: 0;
+  animation: toastSlideIn 0.45s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+.toast.removing { animation: toastSlideOut 0.35s ease-in forwards; }
+.toast.success { background: linear-gradient(135deg, #00c853, #009624); }
+.toast.error { background: linear-gradient(135deg, #ff1744, #d50000); }
+.toast.info { background: linear-gradient(135deg, #2979ff, #1565c0); }
+.toast.warning { background: linear-gradient(135deg, #ff9100, #e65100); }
+.toast .toast-icon { font-size: 22px; flex-shrink: 0; }
+.toast .toast-msg { flex: 1; line-height: 1.4; }
+.toast .toast-close { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 18px; flex-shrink: 0; padding: 0; display: flex; }
+.toast .toast-close:hover { color: #fff; }
+@keyframes toastSlideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes toastSlideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+
+/* ── Breadcrumbs ───────────────────────────────────────── */
+.breadcrumb-nav {
+  padding: 8px 15px; font-size: 0.85rem; color: #565959;
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  max-width: 1400px; margin: 0 auto;
+}
+.breadcrumb-nav a { color: #007185; text-decoration: none; transition: color 0.15s; }
+.breadcrumb-nav a:hover { color: #c45500; text-decoration: underline; }
+.breadcrumb-sep { color: #999; margin: 0 2px; font-size: 0.75rem; }
+.breadcrumb-current { color: #0f1111; font-weight: 500; }
+
+/* ── Trust Badges ──────────────────────────────────────── */
+.trust-badges {
+  display: flex; gap: 12px; justify-content: center;
+  margin: 1.25rem 0 0.5rem; padding-top: 1rem;
+  border-top: 1px solid #e3e6e6; flex-wrap: wrap;
+}
+.trust-badge {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; flex: 1; min-width: 70px; text-align: center;
+}
+.trust-badge .material-symbols-rounded { font-size: 24px; color: #007185; }
+.trust-badge span:last-child { font-size: 0.7rem; color: #565959; line-height: 1.2; font-weight: 500; }
+
+/* ── Wishlist Heart on Cards ───────────────────────────── */
+.wishlist-heart-btn {
+  position: absolute; top: 8px; left: 8px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,0.9); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 10;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  transition: all 0.2s ease; padding: 0;
+}
+.wishlist-heart-btn:hover { background: #fff; transform: scale(1.1); box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
+.wishlist-heart-btn .material-symbols-rounded { font-size: 20px; color: #999; transition: color 0.2s; }
+.wishlist-heart-btn.active .material-symbols-rounded { color: #e74c3c; }
+@keyframes heartPop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+.wishlist-heart-btn.popping { animation: heartPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+/* ── Wishlist Sidebar ──────────────────────────────────── */
+.wishlist-sidebar {
+  position: fixed; top: 0; right: -500px;
+  width: 100%; max-width: 440px; height: 100vh;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+  border-left: 1px solid #D5D9D9; z-index: 1001;
+  display: flex; flex-direction: column;
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+}
+.wishlist-sidebar.open { right: 0; }
+.wishlist-header { padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e3e6e6; }
+.wishlist-header h2 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: #0f1111; }
+.wishlist-items { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+
+.wishlist-item { display: flex; gap: 12px; padding-bottom: 1rem; border-bottom: 1px solid #e3e6e6; cursor: pointer; }
+.wishlist-item img { width: 80px; height: 80px; object-fit: contain; border-radius: 4px; background: #f7f7f7; border: 1px solid #e3e6e6; }
+.wishlist-item-info { flex: 1; display: flex; flex-direction: column; }
+.wishlist-item-title { font-size: 0.9rem; font-weight: 500; color: #0f1111; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.wishlist-item-price { font-weight: 700; color: #0f1111; font-size: 1rem; margin-bottom: auto; }
+.wishlist-item-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.wishlist-add-cart-btn { padding: 5px 14px; background: #FFD814; color: #0f1111; border: 1px solid #FCD200; border-radius: 100px; font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.wishlist-add-cart-btn:hover { background: #F7CA00; }
+.wishlist-remove-btn { padding: 5px 14px; background: #fff; color: #c45500; border: 1px solid #D5D9D9; border-radius: 100px; font-size: 0.8rem; cursor: pointer; transition: background 0.2s; }
+.wishlist-remove-btn:hover { background: #f7f8f8; }
+
+.empty-wishlist-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #565959; text-align: center; }
+.empty-wishlist-msg .material-symbols-rounded { font-size: 3.5rem; margin-bottom: 1rem; color: #ccc; }
+
+.wishlist-badge { position: absolute; top: -4px; right: -4px; background: #e74c3c; color: white; font-size: 0.7rem; font-weight: 700; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid #131921; }
+
+/* ── Recently Viewed ───────────────────────────────────── */
+.recently-viewed-section { margin: 2rem 0; background: #fff; border-radius: 4px; padding: 15px; max-width: 1400px; margin-left: auto; margin-right: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+.recently-viewed-section h2 { font-size: 1.25rem; font-weight: 700; color: #0f1111; margin-bottom: 12px; font-family: var(--font-display); }
+.recently-viewed-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: #ccc transparent; }
+.recently-viewed-scroll::-webkit-scrollbar { height: 4px; }
+.recently-viewed-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+.rv-card { flex-shrink: 0; width: 150px; cursor: pointer; transition: transform 0.2s; text-align: center; }
+.rv-card:hover { transform: translateY(-3px); }
+.rv-card img { width: 150px; height: 150px; object-fit: contain; background: #f7f7f7; border-radius: 4px; border: 1px solid #e3e6e6; }
+.rv-card .rv-title { font-size: 0.8rem; color: #007185; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
+.rv-card .rv-price { font-size: 0.9rem; font-weight: 700; color: #0f1111; margin-top: 2px; }

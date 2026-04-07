@@ -1,0 +1,308 @@
+/* ==========================================================================
+   RESPONSIVE — All Media Query Breakpoints (consolidated)
+   ========================================================================== */
+
+/* ── Large Tablets / Small Desktops (≤1024px) ──────────── */
+@media (max-width: 1024px) {
+  .sort-filter-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .price-range-section { width: 100%; justify-content: flex-start; }
+
+  /* Product Detail — stack to single column */
+  .pd-layout { flex-direction: column; }
+  .pd-gallery-section { position: relative; width: 100%; max-width: 100%; flex: none; flex-direction: row; }
+  .pd-buybox {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    z-index: 9999;
+    background: #fff;
+    border: none;
+    border-top: 1px solid #D5D9D9;
+    border-radius: 0;
+    padding: 0.75rem 1rem;
+    margin-top: 0;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .pd-buybox > *:not(button) { display: none !important; }
+  .pd-buybox .pd-add-to-cart-btn,
+  .pd-buybox .pd-buy-now-btn {
+    flex: 1;
+    margin-top: 0 !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.95rem !important;
+  }
+  .pd-modal-content { padding-bottom: 70px !important; }
+  .pd-main-image-container { min-height: 350px; max-height: 60vh; overflow: hidden; }
+  .pd-image-large { max-height: 55vh; }
+  .pd-zoom-lens, .pd-zoom-result { display: none !important; }
+
+  /* Checkout Modal */
+  .modal-content.glass-card { max-height: 90vh; overflow-y: auto; }
+}
+
+/* ── Tablets (≤768px) ──────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Navbar */
+  .nav-container { flex-wrap: wrap; justify-content: space-between; padding: 8px 12px; gap: 8px; }
+  .brand-logo { height: 50px; }
+  .search-container { order: 3; width: 100%; flex: 100%; margin-top: 4px; }
+  .search-bar-wrapper { height: 40px; }
+  .search-submit-btn { padding: 0 1rem; font-size: 0.9rem; }
+  .nav-actions { gap: 0.5rem; }
+  .icon-btn { width: 40px; height: 40px; }
+  .category-nav-wrapper { overflow-x: auto; }
+  .category-list { padding: 0.25rem 1rem 0.5rem; }
+  .mobile-menu-btn { display: flex; }
+
+  /* Hero */
+  .premium-hero .poster-container { height: 180px; }
+  .poster-overlay-content { padding: 0.75rem 1rem; max-width: 65%; }
+  .poster-title { font-size: 1rem; }
+  .poster-discount-tag { font-size: 0.75rem; padding: 3px 8px; }
+  .poster-shop-btn { padding: 7px 18px; font-size: 0.8rem; }
+  .poster-carousel-btn { width: 36px; height: 60px; }
+  .poster-carousel-btn .material-symbols-rounded { font-size: 28px; }
+  .poster-dots { bottom: 12px; gap: 6px; }
+  .poster-dot { width: 8px; height: 8px; }
+
+  /* Main Content */
+  .main-content { margin-top: -80px !important; padding: 0 8px !important; }
+
+  /* Products */
+  .jumia-container { padding: 8px; border-radius: 0; }
+  .jumia-container .product-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .jumia-img-container { height: 130px; }
+  .jumia-title { font-size: 0.78rem !important; }
+  .jumia-price { font-size: 1rem !important; }
+  .jumia-old-price { font-size: 0.75rem; }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.5rem; }
+  .product-image-container { height: 140px; }
+  .product-title { font-size: 0.8rem; }
+  .product-price { font-size: 1.1rem; }
+
+  /* Sort / Filter */
+  .sort-filter-bar { padding: 8px 10px; }
+  .sort-select { width: 100%; }
+
+  /* Breadcrumbs */
+  .breadcrumb-nav { padding: 6px 10px; font-size: 0.8rem; }
+
+  /* Product Detail — improved image display */
+  .pd-layout { padding: 1rem 0.75rem; gap: 1rem; }
+  .pd-gallery-section { flex-direction: column; }
+  .pd-thumbnails { flex-direction: row !important; width: 100% !important; overflow-x: auto; gap: 6px; padding-bottom: 4px; }
+  .pd-thumbnail { width: 50px; height: 50px; flex-shrink: 0; }
+  .pd-main-image-container { 
+    max-height: 50vh; 
+    min-height: 250px; 
+    width: 100%; 
+    overflow: hidden;
+  }
+  .pd-image-large { max-height: 45vh; }
+  .pd-title-large { font-size: 1.15rem; }
+  .pd-price-large { font-size: 1.5rem; }
+  .pd-close { top: 10px !important; right: 10px !important; width: 38px; height: 38px; }
+  .pd-info-center { padding: 0; }
+  .pd-buybox { 
+    padding: 0.75rem 1rem;
+  }
+  .pd-buybox .pd-add-to-cart-btn,
+  .pd-buybox .pd-buy-now-btn {
+    padding: 0.7rem 0.75rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Cart / Wishlist */
+  .cart-sidebar { max-width: 100%; }
+  .wishlist-sidebar { max-width: 100%; }
+
+  /* Checkout / Payment Modal — FULLY RESPONSIVE */
+  .modal-content.glass-card { 
+    width: 95% !important; 
+    max-width: none !important; 
+    padding: 1.25rem !important; 
+    max-height: 90vh; 
+    overflow-y: auto; 
+  }
+
+  #checkoutModal .modal-content.glass-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0 !important;
+    padding: 1.25rem 1rem !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #checkoutModal #checkoutForm {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 1rem;
+  }
+
+  #checkoutModal .form-input {
+    font-size: 16px; /* Prevents iOS zoom */
+    padding: 12px;
+  }
+
+  #checkoutModal #checkoutSummary {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 5;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e3e6e6;
+    margin-bottom: 1rem;
+  }
+
+  .trust-badges { gap: 8px; flex-wrap: wrap; }
+  .trust-badge { min-width: 60px; flex: 1 1 calc(25% - 8px); }
+  .trust-badge .material-symbols-rounded { font-size: 20px; }
+  .trust-badge span:last-child { font-size: 0.65rem; }
+
+  /* Footer */
+  .footer-links-container { flex-direction: column; gap: 1.5rem; padding: 1.5rem 1rem; text-align: center; }
+  .footer-col ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 1rem; }
+  .footer-copyright ul { flex-wrap: wrap; justify-content: center; gap: 0.5rem 1rem; }
+
+  /* Toast */
+  .toast-container { top: auto; bottom: 20px; right: 10px; left: 10px; }
+  .toast { min-width: auto; max-width: 100%; font-size: 0.88rem; padding: 10px 14px; }
+
+  /* Recently Viewed */
+  .recently-viewed-section { margin: 1rem 8px; padding: 10px; }
+  .rv-card { width: 120px; }
+  .rv-card img { width: 120px; height: 120px; }
+
+  /* Pages */
+  .page-content-card { padding: 1.25rem 1rem; }
+  .page-title { font-size: 1.5rem; }
+  .page-section h2 { font-size: 1.15rem; }
+  .values-grid, .tech-grid, .ad-grid, .contact-grid, .benefits-grid, .account-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .steps-grid { grid-template-columns: 1fr; }
+  .info-table { font-size: 0.85rem; }
+  .info-table th, .info-table td { padding: 8px 10px; }
+  .static-page { padding: 1rem 0.5rem; }
+}
+
+/* ── Small Mobile (≤480px) ─────────────────────────────── */
+@media (max-width: 480px) {
+  .premium-hero .poster-container { height: 160px; }
+  .poster-overlay-content { padding: 0.75rem 1rem; max-width: 70%; }
+  .poster-title { font-size: 0.95rem; }
+  .poster-carousel-btn { display: none; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .stat-card { padding: 1rem; }
+  .stat-number { font-size: 1.5rem; }
+  .job-card { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+
+  /* Product Detail — images fill width on small screens */
+  .pd-layout { padding: 0.75rem 0.5rem; gap: 0.75rem; }
+  .pd-main-image-container { 
+    min-height: 220px; 
+    max-height: 45vh; 
+    padding: 0.5rem; 
+    border-radius: 6px;
+  }
+  .pd-image-large { max-height: 40vh; }
+  .pd-thumbnails { gap: 4px; }
+  .pd-thumbnail { width: 44px; height: 44px; }
+  .pd-title-large { font-size: 1.05rem; }
+  .pd-price-large { font-size: 1.35rem; }
+  .carousel-btn { width: 36px; height: 36px; }
+  .prev-btn { left: 6px; }
+  .next-btn { right: 6px; }
+
+  /* Checkout / Payment — full screen sheet */
+  #checkoutModal .modal-content.glass-card {
+    padding: 1rem 0.75rem !important;
+  }
+
+  #checkoutModal h2 { font-size: 1.15rem; }
+
+  #checkoutModal .form-input {
+    padding: 11px 10px;
+    font-size: 16px;
+    border-radius: 8px;
+  }
+
+  #checkoutModal select.form-input {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='m7 10 5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  /* Stack coupon field vertically */
+  #checkoutForm > div:has(#chkCoupon) {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+  #checkoutForm > div:has(#chkCoupon) .checkout-btn {
+    width: 100%;
+    padding: 10px !important;
+  }
+
+  /* Stack state/postal code vertically */
+  #checkoutForm > div:has(#chkState) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  #checkoutForm > div:has(#chkState) .form-input {
+    flex: none !important;
+    width: 100%;
+  }
+
+  .trust-badges { 
+    gap: 6px; 
+    flex-wrap: wrap; 
+  }
+  .trust-badge { 
+    flex: 1 1 calc(50% - 6px); 
+    min-width: 0; 
+    padding: 8px 4px;
+  }
+  .trust-badge .material-symbols-rounded { font-size: 18px; }
+  .trust-badge span:last-child { font-size: 0.6rem; }
+}
+
+/* ── Very Small Phones (≤400px) ────────────────────────── */
+@media (max-width: 400px) {
+  .jumia-container .product-grid { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+  .jumia-img-container { height: 110px; }
+  .premium-hero .poster-container { height: 140px; }
+  .poster-overlay-content { max-width: 80%; padding: 0.5rem 0.75rem; }
+  .poster-title { font-size: 0.85rem; }
+  .brand-logo { height: 40px; }
+  .search-bar-wrapper { height: 36px; }
+
+  /* Product Detail — compact view */
+  .pd-main-image-container { min-height: 200px; max-height: 40vh; }
+  .pd-image-large { max-height: 35vh; }
+  .pd-thumbnail { width: 40px; height: 40px; }
+  .pd-title-large { font-size: 1rem; }
+  .pd-close { top: 8px !important; right: 8px !important; width: 34px; height: 34px; }
+  .pd-close .material-symbols-rounded { font-size: 20px; }
+
+  /* Checkout — ultra compact */
+  #checkoutModal .modal-content.glass-card {
+    padding: 0.75rem 0.5rem !important;
+  }
+  #checkoutModal h2 { font-size: 1.05rem; margin-bottom: 0.5rem !important; }
+  #checkoutModal .form-input { padding: 10px 8px; font-size: 15px; }
+  #checkoutModal .checkout-btn { padding: 12px; font-size: 0.95rem; }
+  .checkout-address-header strong { font-size: 0.85rem !important; }
+}

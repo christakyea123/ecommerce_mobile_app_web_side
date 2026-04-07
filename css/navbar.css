@@ -1,0 +1,209 @@
+/* ==========================================================================
+   NAVBAR — Header, Search, Category Navigation
+   ========================================================================== */
+
+/* ── Main Header ───────────────────────────────────────── */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #131921;
+  border: none;
+  color: #ffffff;
+  transition: all 0.3s ease;
+}
+
+.nav-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.logo { display: flex; align-items: center; }
+
+.brand-logo {
+  height: 80px;
+  object-fit: contain;
+  margin-top: 4px;
+}
+
+/* ── Search Bar ────────────────────────────────────────── */
+.search-container {
+  flex: 2;
+  max-width: 800px;
+}
+
+.search-bar-wrapper {
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: 4px;
+  overflow: hidden;
+  height: 44px;
+  background: #fff;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  padding: 0 1.5rem;
+  font-size: 1rem;
+  outline: none;
+  height: 100%;
+  font-family: var(--font-sans);
+}
+
+.clear-btn {
+  padding: 0 10px;
+  height: 100%;
+  cursor: pointer;
+  background: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  color: #999;
+}
+
+.search-submit-btn {
+  height: 100%;
+  padding: 0 2rem;
+  background: var(--accent-color);
+  color: #111;
+  border: none;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.search-submit-btn:hover { background: var(--accent-hover); }
+
+/* ── Nav Action Icons ──────────────────────────────────── */
+.nav-actions { display: flex; gap: 1rem; }
+
+.icon-btn {
+  position: relative;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  width: 48px;
+  height: 48px;
+  color: #fff;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover {
+  background: transparent;
+  border: 1px solid #fff;
+  box-shadow: none;
+  transform: none;
+}
+
+.cart-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--accent-color);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+@keyframes cartPulse { 0% { transform: scale(1); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.cart-badge.pulse { animation: cartPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+/* ── Category Discovery Nav ────────────────────────────── */
+.category-nav-wrapper {
+  background: #232F3E;
+  border: none;
+  box-shadow: none;
+}
+
+.category-list {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.5rem 1.5rem 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.category-list::-webkit-scrollbar { display: none; }
+
+.category-pill {
+  border-radius: 2px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #fff;
+  font-weight: 500;
+  padding: 6px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* FIX: removed translateY(-2px) that caused the "jump up" glitch on click */
+.category-pill:hover,
+.category-pill.active {
+  background: transparent;
+  color: #fff;
+  border-color: #fff;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Subcategory Pills ─────────────────────────────────── */
+.subcategory-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0;
+}
+
+.subcategory-pill {
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 0.4rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.subcategory-pill:hover,
+.subcategory-pill.active {
+  background: var(--accent-light);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+/* ── Mobile Hamburger ──────────────────────────────────── */
+.mobile-menu-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.mobile-menu-btn:hover { border-color: #fff; }

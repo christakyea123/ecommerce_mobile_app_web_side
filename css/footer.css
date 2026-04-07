@@ -1,0 +1,43 @@
+/* ==========================================================================
+   FOOTER — Amazon-Style Footer
+   ========================================================================== */
+
+.amazon-footer {
+  background-color: #232f3e;
+  color: #fff;
+  font-family: inherit;
+  margin-top: 3rem;
+}
+
+.footer-back-to-top {
+  background-color: #37475a;
+  text-align: center;
+  padding: 15px 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.footer-back-to-top:hover { background-color: #485769; }
+
+.footer-links-container {
+  display: flex;
+  justify-content: center;
+  gap: 4rem;
+  padding: 3rem 1rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.footer-col h3 { font-size: 1rem; margin-bottom: 1rem; font-weight: 700; color: #fff; }
+.footer-col ul { list-style: none; padding: 0; margin: 0; }
+.footer-col ul li { margin-bottom: 0.6rem; }
+.footer-col ul li a { color: #ddd; text-decoration: none; font-size: 0.9rem; transition: color 0.15s; }
+.footer-col ul li a:hover { text-decoration: underline; color: #fff; }
+
+.footer-bottom { background-color: #131921; text-align: center; padding: 2rem 1rem; }
+.footer-logo img { height: 40px; object-fit: contain; margin-bottom: 1.5rem; }
+.footer-copyright ul { list-style: none; padding: 0; display: flex; justify-content: center; gap: 1.5rem; margin-bottom: 0.5rem; }
+.footer-copyright ul li a { color: #ddd; text-decoration: none; font-size: 0.8rem; }
+.footer-copyright ul li a:hover { text-decoration: underline; }
+.footer-copyright p { color: #ddd; font-size: 0.8rem; margin: 0; }

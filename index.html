@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glomek — Shop Premium Products Online | Ghana's #1 E-Commerce</title>
+    <meta name="description" content="Discover 50,000+ authentic products on Glomek. Shop electronics, fashion, home & more with secure payments (MTN MoMo, Visa, Cash on Delivery) and fast Ghana-wide delivery.">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#131921">
+    <link rel="canonical" href="https://glomek.com/">
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Glomek">
+    <meta property="og:title" content="Glomek — Shop Premium Products Online">
+    <meta property="og:description" content="Ghana's trusted e-commerce marketplace. 50,000+ products, secure payments, fast delivery.">
+    <meta property="og:url" content="https://glomek.com/">
+    <meta property="og:image" content="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Glomek — Shop Premium Products Online">
+    <meta name="twitter:description" content="Ghana's trusted e-commerce marketplace. 50,000+ products, secure payments, fast delivery.">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Glomek",
+      "url": "https://glomek.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://glomek.com/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Glomek",
+      "url": "https://glomek.com",
+      "logo": "https://glomek.com/assets/logo/Glomek%20App%20Logo2.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+233543791625",
+        "contactType": "customer service",
+        "availableLanguage": "English"
+      },
+      "sameAs": ["https://wa.me/233543791625"]
+    }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+
+    <!-- Modular CSS (industry-standard separation) -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/navbar.css">
+    <link rel="stylesheet" href="css/hero.css">
+    <link rel="stylesheet" href="css/products.css">
+    <link rel="stylesheet" href="css/cart.css">
+    <link rel="stylesheet" href="css/modals.css">
+    <link rel="stylesheet" href="css/footer.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/pages.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+    <!-- Promo Banner Strip -->
+    <div class="promo-banner" id="promoBanner">
+        <div class="promo-text">
+            <span class="material-symbols-rounded" style="font-size:16px;">phone_android</span>
+            Download the <span class="promo-highlight">Glomek App</span>
+        </div>
+        <button class="promo-close" onclick="document.getElementById('promoBanner').style.display='none'">
+            <span class="material-symbols-rounded" style="font-size:18px;">close</span>
+        </button>
+    </div>
+
+    <!-- Navbar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <a href="index.html" style="display:flex; align-items:center;">
+                    <img src="assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo" class="brand-logo">
+                </a>
+            </div>
+            
+            <div class="search-container">
+                <div class="search-bar-wrapper">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search on glomek...">
+                    <button class="clear-btn" id="clearSearchBtn" hidden>
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                    <button class="search-submit-btn">Search</button>
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <button class="icon-btn" id="wishlistToggleBtn" title="Saved Items">
+                    <span class="material-symbols-rounded">favorite</span>
+                    <span class="wishlist-badge" id="wishlistBadge" hidden>0</span>
+                </button>
+                <button class="icon-btn" id="cartToggleBtn">
+                    <span class="material-symbols-rounded">shopping_cart</span>
+                    <span class="cart-badge" id="cartBadge" hidden>0</span>
+                </button>
+                <button class="icon-btn user-btn">
+                    <span class="material-symbols-rounded">person</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Category Discovery Nav -->
+        <div class="category-nav-wrapper">
+            <div class="category-list" id="categoryList">
+                <!-- Skeletons will be injected here initially -->
+            </div>
+        </div>
+    </header>
+
+    <!-- Full Width Hero -->
+    <div class="hero-wrapper" style="width: 100%; margin-bottom: 1.5rem;">
+        <!-- Premium Hero Banner Section -->
+        <section class="hero-section premium-hero" id="heroSection" style="margin-bottom:0;">
+            <div class="poster-container" id="posterContainer">
+                <div class="shimmer-poster"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- MAIN CONTENT OVERLAPPING HERO -->
+    <main class="main-content" style="position: relative; z-index: 10; margin-top: -120px; max-width: 1450px;">
+
+        <!-- Categories Section -->
+        <section class="categories-section" style="margin-bottom: 1.5rem;">
+            <div class="subcategory-list" id="subcategoryList" hidden>
+                <!-- Subcategory pills injected here on category click -->
+            </div>
+        </section>
+
+        <!-- Breadcrumb Navigation -->
+        <nav class="breadcrumb-nav" id="breadcrumbNav">
+            <a href="#" onclick="filterByCategory(null); return false;">Home</a>
+        </nav>
+
+        <!-- Main Product Grid -->
+        <section class="products-section jumia-container">
+            <!-- Sort & Filter Bar -->
+            <div class="sort-filter-bar" id="sortFilterBar">
+                <div class="sort-filter-left">
+                    <span class="product-count-text" id="productCountText">Showing <strong>0</strong> results</span>
+                    <select class="sort-select" id="sortSelect" onchange="handleSortChange()">
+                        <option value="featured">Sort by: Featured</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="newest">Newest Arrivals</option>
+                        <option value="rating">Avg. Customer Review</option>
+                    </select>
+                </div>
+                <div class="price-range-section">
+                    <span>Price:</span>
+                    <input type="number" class="price-range-input" id="priceMin" placeholder="Min" min="0">
+                    <span>–</span>
+                    <input type="number" class="price-range-input" id="priceMax" placeholder="Max" min="0">
+                    <button class="price-go-btn" onclick="applyPriceFilter()">Go</button>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h2 id="productSectionTitle">Featured Products</h2>
+            </div>
+            
+            <div class="empty-state" id="emptyState" hidden>
+                <div class="empty-content">
+                    <span class="material-symbols-rounded empty-icon">search_off</span>
+                    <h3 id="emptyMessage">No results found</h3>
+                    <p>Check spelling or try a different keyword.</p>
+                </div>
+                <h2 class="recommendations-title">Related Products</h2>
+            </div>
+
+            <div class="product-grid" id="productGrid">
+                <!-- Skeletons / Products injected here -->
+            </div>
+            
+            <div class="loading-more" id="loadingMore" hidden>
+                <div class="spinner"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Premium Amazon-Style Footer -->
+    <footer class="amazon-footer">
+        <div class="footer-back-to-top" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+            Back to top
+        </div>
+        <div class="footer-links-container">
+            <div class="footer-col">
+                <h3>Get to Know Us</h3>
+                <ul>
+                    <li><a href="pages/about.html">About Glomek</a></li>
+                    <li><a href="pages/careers.html">Careers</a></li>
+                    <li><a href="pages/press.html">Press Releases</a></li>
+                    <li><a href="pages/science.html">Glomek Science</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3>Make Money with Us</h3>
+                <ul>
+                    <li><a href="pages/sell.html">Sell on Glomek</a></li>
+                    <li><a href="pages/brand-protection.html">Protect & Build Your Brand</a></li>
+                    <li><a href="pages/supply.html">Supply to Glomek</a></li>
+                    <li><a href="pages/advertise.html">Advertise Your Products</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3>Glomek Payment Products</h3>
+                <ul>
+                    <li><a href="pages/rewards.html">Glomek Rewards Hub</a></li>
+                    <li><a href="pages/store-card.html">Glomek Store Card</a></li>
+                    <li><a href="pages/shop-points.html">Shop with Points</a></li>
+                    <li><a href="pages/reload-balance.html">Reload Your Balance</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3>Let Us Help You</h3>
+                <ul>
+                    <li><a href="pages/account.html">Your Account</a></li>
+                    <li><a href="pages/orders.html">Your Orders</a></li>
+                    <li><a href="pages/shipping.html">Shipping Rates & Policies</a></li>
+                    <li><a href="pages/returns.html">Returns & Replacements</a></li>
+                    <li><a href="pages/help.html">Help</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-logo">
+                <a href="index.html"><img src="assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo"></a>
+            </div>
+            <div class="footer-copyright">
+                <ul>
+                    <li><a href="pages/conditions.html">Conditions of Use</a></li>
+                    <li><a href="pages/privacy.html">Privacy Notice</a></li>
+                    <li><a href="pages/health-privacy.html">Consumer Health Data Privacy</a></li>
+                </ul>
+                <p>&copy; 2026, Glomek.com, Inc. or its affiliates</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Sidebar -->
+    <div class="cart-overlay" id="cartOverlay"></div>
+    <aside class="cart-sidebar" id="cartSidebar">
+        <div class="cart-header">
+            <h2>Your Cart</h2>
+            <button class="close-btn" id="closeCartBtn">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <!-- Cart items injected here -->
+            <div class="empty-cart-message">
+                <span class="material-symbols-rounded">shopping_bag</span>
+                <p>Your cart is empty.</p>
+            </div>
+        </div>
+        <div class="cart-footer glass">
+            <div class="cart-total">
+                <span>Total</span>
+                <strong class="accent-text" id="cartTotal">GH₵0.00</strong>
+            </div>
+            <button class="checkout-btn" id="checkoutBtn" disabled>Checkout Securely</button>
+        </div>
+    </aside>
+
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="authModal" hidden>
+        <div class="modal-content glass-card">
+            <button class="close-modal" onclick="closeModal('authModal')"><span class="material-symbols-rounded">close</span></button>
+            <h2 id="authTitle" style="margin-bottom: 1rem; font-family:var(--font-display);">Login</h2>
+            
+            <form id="authForm" onsubmit="handleAuthSubmit(event)">
+                <input type="text" id="authName" placeholder="Full Name" hidden class="form-input">
+                <input type="email" id="authEmail" placeholder="Email Address" required class="form-input">
+                <input type="password" id="authPassword" placeholder="Password" required class="form-input">
+                
+                <div style="text-align: right; margin-top: -0.5rem; margin-bottom: 1rem;" id="forgotPasswordWrapper">
+                    <a href="#" onclick="openForgotPassword()" style="color: var(--accent-color); font-size: 0.9rem; font-weight: 500;">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="checkout-btn" id="authSubmitBtn">Login</button>
+            </form>
+            
+            <div class="divider" style="text-align: center; margin: 1.5rem 0; color: var(--text-secondary); position: relative;">
+                <span style="background:var(--surface-color); padding: 0 10px; position:relative; z-index:1;">OR</span>
+                <div style="position:absolute; top:50%; left:0; width:100%; height:1px; background:var(--glass-border); z-index:0;"></div>
+            </div>
+
+            <!-- Custom Google Sign-In Container -->
+            <div id="googleSignInBtnContainer" style="display: flex; justify-content: center;"></div>
+
+            <p style="margin-top: 1.5rem; text-align:center; color: var(--text-secondary);">
+                <span id="authToggleText">Don't have an account?</span> 
+                <a href="#" onclick="toggleAuthMode()" class="accent" id="authToggleLink">Sign Up</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div class="modal-overlay" id="forgotPasswordModal" hidden>
+        <div class="modal-content glass-card">
+            <button class="close-modal" onclick="closeModal('forgotPasswordModal')"><span class="material-symbols-rounded">close</span></button>
+            <h2 style="margin-bottom: 0.5rem; font-family:var(--font-display);">Reset Password</h2>
+            <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom: 1rem;">Enter your email and we'll send a 6-digit OTP code.</p>
+            
+            <form onsubmit="handleForgotPasswordRequest(event)">
+                <input type="email" id="resetEmail" placeholder="Email Address" required class="form-input">
+                <button type="submit" class="checkout-btn" id="reqOtpBtn">Request OTP</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reset via OTP Modal -->
+    <div class="modal-overlay" id="resetPasswordModal" hidden>
+        <div class="modal-content glass-card">
+            <button class="close-modal" onclick="closeModal('resetPasswordModal')"><span class="material-symbols-rounded">close</span></button>
+            <h2 style="margin-bottom: 0.5rem; font-family:var(--font-display);">Enter OTP</h2>
+            
+            <form onsubmit="handleResetPasswordRequest(event)">
+                <input type="text" id="resetOtp" placeholder="6-digit OTP" required class="form-input">
+                <input type="password" id="resetNewPassword" placeholder="New Password" required class="form-input">
+                <button type="submit" class="checkout-btn" id="verifyOtpBtn">Set New Password</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="modal-overlay" id="profileModal" hidden>
+        <div class="modal-content glass-card" style="max-width: 600px;">
+            <button class="close-modal" onclick="closeModal('profileModal')"><span class="material-symbols-rounded">close</span></button>
+            <h2 style="margin-bottom: 1rem; font-family:var(--font-display);">My Profile</h2>
+            
+            <div id="userInfo" style="margin-bottom: 2rem;">
+                <p>Welcome, <strong id="userName" class="accent-text">User</strong></p>
+                <button onclick="logout()" class="checkout-btn" style="background:var(--danger-color); margin-top:1rem; width:auto; padding: 0.5rem 1rem;">Logout</button>
+            </div>
+            
+            <h3>Order History</h3>
+            <div id="orderHistory" style="margin-top: 1rem; max-height: 300px; overflow-y: auto; padding-right: 0.5rem;">
+                <p style="color:var(--text-secondary)">Loading orders...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Checkout Modal -->
+    <div class="modal-overlay" id="checkoutModal" hidden>
+        <div class="modal-content glass-card" style="max-width: 500px">
+            <button class="close-modal" onclick="closeModal('checkoutModal')"><span class="material-symbols-rounded">close</span></button>
+            <h2 style="margin-bottom: 1rem; font-family:var(--font-display);">Secure Checkout</h2>
+            
+            <div id="checkoutSummary" style="margin-bottom: 1.5rem;">
+                <p>Total Amount: <strong class="accent-text" id="checkoutAmount">GH₵0.00</strong></p>
+            </div>
+
+            <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+                <div style="margin-bottom: 1rem;">
+                    <select id="chkPaymentMethod" class="form-input" onchange="togglePaymentFields()" style="margin-bottom: 0;">
+                        <option value="mtn_mobile_money">MTN Mobile Money</option>
+                        <option value="paystack_card">Card Payment (Paystack)</option>
+                        <option value="cash_on_delivery">Cash on Delivery</option>
+                    </select>
+                </div>
+                <div id="momoFieldSection" style="display:flex; gap: 1rem; margin-bottom: 1rem;">
+                    <input type="text" id="chkPhone" placeholder="Mobile Money Number (e.g. 024...)" required class="form-input" style="flex:1; margin-bottom:0;">
+                </div>
+                <div id="codNotice" class="cod-notice" style="display:none;">
+                    <span class="material-symbols-rounded" style="font-size:18px; vertical-align:middle; color:var(--accent-color);">local_shipping</span>
+                    Pay when your order is delivered to your doorstep.
+                </div>
+                
+                <div class="checkout-address-header" style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+                    <span class="material-symbols-rounded" style="font-size:20px; color:var(--accent-color);">location_on</span>
+                    <strong style="font-size:0.95rem;">Delivery Address</strong>
+                </div>
+                <input type="text" id="chkAddress" placeholder="Street Address" required class="form-input">
+                <input type="text" id="chkCity" placeholder="City" required class="form-input">
+                <div style="display:flex; gap: 0.75rem;">
+                    <input type="text" id="chkState" placeholder="State / Region" required class="form-input" style="flex:1;">
+                    <input type="text" id="chkPostalCode" placeholder="Postal Code" class="form-input" style="flex:1;">
+                </div>
+                <input type="text" id="chkCountry" placeholder="Country" required class="form-input" value="Ghana">
+                
+                <div style="display:flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <input type="text" id="chkCoupon" placeholder="Coupon Code (Optional)" class="form-input" style="flex:1; margin-bottom:0;">
+                    <button type="button" class="checkout-btn" style="width: auto; padding: 0 1.5rem;" onclick="applyCoupon()">Apply</button>
+                </div>
+                
+                <button type="submit" class="checkout-btn" id="payBtn">Pay securely</button>
+                
+                <!-- Trust Badges -->
+                <div class="trust-badges">
+                    <div class="trust-badge">
+                        <span class="material-symbols-rounded">verified_user</span>
+                        <span>Secure Payment</span>
+                    </div>
+                    <div class="trust-badge">
+                        <span class="material-symbols-rounded">local_shipping</span>
+                        <span>Fast Delivery</span>
+                    </div>
+                    <div class="trust-badge">
+                        <span class="material-symbols-rounded">undo</span>
+                        <span>Easy Returns</span>
+                    </div>
+                    <div class="trust-badge">
+                        <span class="material-symbols-rounded">workspace_premium</span>
+                        <span>100% Authentic</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Details Modal (Amazon Layout) -->
+    <div class="modal-overlay pd-overlay" id="productDetailModal" hidden>
+        <div class="modal-content pd-modal-content">
+            <button class="close-modal pd-close" onclick="closeModal('productDetailModal')">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+            
+            <div class="pd-layout">
+                <!-- Left: Galleries -->
+                <div class="pd-gallery-section">
+                    <div class="pd-thumbnails" id="pdThumbnails" style="display:none;"></div>
+                    <div class="pd-main-image-container" style="position:relative;" id="pdMainImgContainer">
+                        <button class="carousel-btn prev-btn" onclick="prevPdImage(event)"><span class="material-symbols-rounded">chevron_left</span></button>
+                        <img id="pdImage" src="" alt="Product Image" class="pd-image-large">
+                        <button class="carousel-btn next-btn" onclick="nextPdImage(event)"><span class="material-symbols-rounded">chevron_right</span></button>
+                        <div class="pd-dot-indicator" id="pdDots"></div>
+                        <!-- Image Zoom Elements -->
+                        <div class="pd-zoom-lens" id="pdZoomLens"></div>
+                        <div class="pd-zoom-result" id="pdZoomResult"></div>
+                    </div>
+                </div>
+                
+                <!-- Center: Info -->
+                <div class="pd-info-center">
+                    <h1 id="pdTitle" class="pd-title-large">Product Title</h1>
+                    <div class="pd-rating">
+                        <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star</span>
+                        <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star</span>
+                        <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star</span>
+                        <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star</span>
+                        <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star_half</span>
+                        <a href="#" style="color:#007185;margin-left:8px;font-size:0.9rem;">1,241 ratings</a>
+                    </div>
+                    <hr style="border-top:1px solid #ddd; margin: 15px 0;" />
+                    
+                    <div class="pd-price-row-large">
+                        <span id="pdDiscount" class="pd-discount-badge" hidden>-0%</span>
+                        <span class="pd-price-symbol">GH₵</span>
+                        <span id="pdPrice" class="pd-price-large">0.00</span>
+                    </div>
+                    <div style="font-size:0.9rem; color:#565959;">
+                        List Price: <span id="pdOldPrice" style="text-decoration:line-through;" hidden>GH₵0.00</span>
+                    </div>
+
+                    <div id="pdVariantsSection" class="pd-variants-section" hidden style="margin-top: 1rem;">
+                        <h4 style="font-size:1rem;margin-bottom:0.5rem;">Style:</h4>
+                        <div id="pdVariantsList" class="pd-variants-list"></div>
+                    </div>
+
+                    <div class="pd-description-section" style="margin-top: 1.5rem;">
+                        <h4 style="font-size:1rem;margin-bottom:0.5rem;">About this item</h4>
+                        <ul id="pdDescription" style="padding-left:1.5rem; color:#0f1111; font-size:0.95rem; line-height:1.6;">
+                            <li>Description goes here</li>
+                        </ul>
+                    </div>
+
+                    <!-- Reviews Section -->
+                    <div class="pd-reviews-section" style="margin-top: 2rem;">
+                        <h4 style="font-size:1rem;margin-bottom:0.75rem;">Customer Reviews</h4>
+                        <div id="pdReviewsList" style="max-height: 300px; overflow-y: auto;"></div>
+                        <div id="pdReviewForm" hidden>
+                            <div class="review-form">
+                                <h4 style="font-size:0.95rem; margin-bottom:0.5rem;">Write a Review</h4>
+                                <div class="star-picker" id="starPicker"></div>
+                                <textarea id="reviewText" class="form-input" placeholder="Share your experience..." rows="3" style="resize:vertical;"></textarea>
+                                <button class="checkout-btn" id="submitReviewBtn" style="padding: 0.6rem 1.5rem; width:auto;">Submit Review</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Related Products -->
+                    <div class="pd-related-section" id="pdRelatedSection" hidden>
+                        <h4>Customers who viewed this also viewed</h4>
+                        <div class="pd-related-scroll" id="pdRelatedScroll"></div>
+                    </div>
+                </div>
+
+                <!-- Right: Buy Box -->
+                <div class="pd-buybox">
+                    <div class="buybox-price">
+                        <span class="pd-price-symbol">GH₵</span><span id="buyBoxPrice">0.00</span>
+                    </div>
+                    
+                    <div id="pdStockWarning" class="pd-stock-label" hidden>
+                        <span id="pdStockText">In Stock</span>
+                    </div>
+
+                    <div style="margin-bottom:1rem; font-size:0.9rem;">
+                        Ships from &nbsp; <strong>Glomek Fulfillment</strong><br/>
+                        Sold by &nbsp; &nbsp; <strong>Glomek LLC</strong>
+                    </div>
+
+                    <button class="pd-add-to-cart-btn checkout-btn" id="pdAddToCartBtn">
+                        Add to Cart
+                    </button>
+                    <!-- Simulated Buy Now flow leading to checkout -->
+                    <button class="pd-buy-now-btn checkout-btn" id="pdBuyNowBtn" style="background:#FFA41C; color:#111; margin-top:10px;">
+                        Buy Now
+                    </button>
+                    
+                    <div style="margin-top:1rem; text-align:center; font-size:12px; color:#565959;">
+                        <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">lock</span>
+                        Secure transaction
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recently Viewed Products -->
+    <section class="recently-viewed-section" id="recentlyViewedSection" hidden>
+        <h2>Your browsing history</h2>
+        <div class="recently-viewed-scroll" id="recentlyViewedScroll"></div>
+    </section>
+
+    <!-- Wishlist Sidebar -->
+    <aside class="wishlist-sidebar" id="wishlistSidebar">
+        <div class="wishlist-header">
+            <h2>Saved Items</h2>
+            <button class="close-btn" id="closeWishlistBtn">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <div class="wishlist-items" id="wishlistItems">
+            <div class="empty-wishlist-msg">
+                <span class="material-symbols-rounded">favorite_border</span>
+                <p>No saved items yet.</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Back to Top FAB -->
+    <button class="back-to-top-fab" id="backToTopFab" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+        <span class="material-symbols-rounded">arrow_upward</span>
+    </button>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

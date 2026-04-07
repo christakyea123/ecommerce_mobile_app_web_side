@@ -1,0 +1,200 @@
+/* ==========================================================================
+   CART — Sidebar, Items, Checkout Button
+   ========================================================================== */
+
+/* ── Cart Overlay ──────────────────────────────────────── */
+.cart-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.cart-overlay.active { opacity: 1; pointer-events: auto; }
+
+/* ── Cart Sidebar ──────────────────────────────────────── */
+.cart-sidebar {
+  position: fixed;
+  top: 0;
+  right: -450px;
+  width: 100%;
+  max-width: 480px;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-left: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 0;
+}
+.cart-sidebar.open { right: 0; }
+
+.cart-header {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--glass-border);
+}
+.cart-header h2 { font-family: var(--font-display); font-size: 1.5rem; }
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+/* ── Cart Items List ───────────────────────────────────── */
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.empty-cart-message {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.empty-cart-message span { font-size: 3rem; margin-bottom: 1rem; }
+
+/* ── Cart Item ─────────────────────────────────────────── */
+.cart-item {
+  display: flex;
+  gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.cart-item-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  background: var(--bg-color);
+  object-fit: cover;
+}
+
+.cart-item-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-item-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cart-item-price { color: var(--accent-color); font-weight: 700; margin-bottom: auto; }
+
+.cart-item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+
+/* ── Quantity Controls ─────────────────────────────────── */
+.qty-controls {
+  display: flex;
+  align-items: center;
+  background: var(--bg-color);
+  border-radius: 20px;
+  padding: 0.25rem;
+}
+
+.qty-btn {
+  background: var(--surface-color);
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.qty-btn:hover { color: var(--accent-color); }
+
+.qty-input {
+  width: 42px;
+  text-align: center;
+  border: 1px solid transparent;
+  background: transparent;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 2px 0;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+.qty-input:focus { border-color: var(--accent-color); outline: none; background: var(--surface-color); }
+.qty-input::-webkit-inner-spin-button,
+.qty-input::-webkit-outer-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+.qty-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: var(--danger-color);
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.delete-btn:hover { opacity: 1; }
+
+/* ── Cart Footer ───────────────────────────────────────── */
+.cart-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Checkout Button (shared) ──────────────────────────── */
+.checkout-btn {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: #FFD814;
+  color: #111;
+  border: 1px solid #FCD200;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 5px rgba(213,217,217,0.5);
+}
+.checkout-btn:hover:not(:disabled) { background: #F7CA00; }
+.checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
