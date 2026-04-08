@@ -1,10 +1,16 @@
 /* ==========================================================================
-   HERO — Banner, Poster Carousel, Overlay Content
+   HERO — Modern Cinematic Poster Carousel
    ========================================================================== */
 
 /* ── Hero Section ──────────────────────────────────────── */
-.hero-section { margin-bottom: 3rem; }
-.hero-wrapper { width: 100%; margin-bottom: 1.5rem; }
+.hero-section {
+  margin-bottom: 0;
+}
+
+.hero-wrapper {
+  width: 100%;
+  margin-bottom: 0;
+}
 
 .premium-hero {
   margin-bottom: 0;
@@ -14,158 +20,353 @@
 
 .premium-hero .poster-container {
   width: 100%;
-  height: 400px;
+  height: 420px;
   border-radius: 0;
   box-shadow: none;
   border: none;
   position: relative;
   overflow: hidden;
-  background: #232f3e;
+  background: #0a0a0a;
 }
 
 /* ── Poster Slides ─────────────────────────────────────── */
 .poster-slide {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   cursor: pointer;
-  transition: opacity 0.6s ease-in-out;
+  transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .poster-slide .poster-image {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  object-position: top center;
+  object-position: center;
+  transform: scale(1);
+  transition: transform 8s ease-out;
 }
 
-/* ── Overlay Gradient & Content ────────────────────────── */
+/* Ken Burns subtle zoom effect on active slide */
+.poster-slide[style*="opacity: 1"] .poster-image,
+.poster-slide[style*="opacity:1"] .poster-image {
+  transform: scale(1.05);
+}
+
+/* ── Overlay — Multi-layer cinematic gradient ──────────── */
 .poster-overlay-gradient {
   position: absolute;
-  top: 0; left: 0;
-  width: 50%; height: 100%;
-  background: linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 70%, transparent 100%);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 40%, transparent 70%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, transparent 35%);
   z-index: 3;
   pointer-events: none;
 }
 
+/* ── Overlay Content — Animated text ───────────────────── */
 .poster-overlay-content {
   position: absolute;
-  top: 50%; left: 0;
+  top: 50%;
+  left: 0;
   transform: translateY(-50%);
   z-index: 4;
-  padding: 2rem 3rem;
-  max-width: 45%;
+  padding: 2.5rem 3.5rem;
+  max-width: 48%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
+
+/* Slide-up animation for content */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.poster-slide[style*="opacity: 1"] .poster-overlay-content > *,
+.poster-slide[style*="opacity:1"] .poster-overlay-content > * {
+  animation: slideUp 0.6s ease-out forwards;
+}
+
+.poster-slide[style*="opacity: 1"] .poster-overlay-content > *:nth-child(1),
+.poster-slide[style*="opacity:1"] .poster-overlay-content > *:nth-child(1) { animation-delay: 0.15s; }
+.poster-slide[style*="opacity: 1"] .poster-overlay-content > *:nth-child(2),
+.poster-slide[style*="opacity:1"] .poster-overlay-content > *:nth-child(2) { animation-delay: 0.3s; }
+.poster-slide[style*="opacity: 1"] .poster-overlay-content > *:nth-child(3),
+.poster-slide[style*="opacity:1"] .poster-overlay-content > *:nth-child(3) { animation-delay: 0.45s; }
+.poster-slide[style*="opacity: 1"] .poster-overlay-content > *:nth-child(4),
+.poster-slide[style*="opacity:1"] .poster-overlay-content > *:nth-child(4) { animation-delay: 0.6s; }
 
 .poster-title {
   color: #fff;
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: 800;
-  line-height: 1.15;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  line-height: 1.12;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .poster-discount-tag {
-  display: inline-block;
-  background: #f22f46;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #f22f46, #e01535);
   color: #fff;
-  padding: 4px 12px;
-  border-radius: 4px;
+  padding: 6px 16px;
+  border-radius: 6px;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(242, 47, 70, 0.35);
+  text-transform: uppercase;
 }
 
 .poster-shop-btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #fff;
   color: #111;
   border: none;
-  padding: 10px 28px;
+  padding: 12px 32px;
   border-radius: 100px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 700;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  margin-top: 4px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
+
 .poster-shop-btn:hover {
   background: var(--accent-color);
   color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
 }
 
-/* ── Carousel Navigation Buttons ───────────────────────── */
+/* ── Carousel Navigation — Sleek transparent ───────────── */
 .poster-carousel-btn {
   position: absolute;
-  top: 0;
-  height: 100%;
-  width: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 90px;
+  width: 48px;
   z-index: 120;
-  background: rgba(15, 17, 17, 0.25);
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.25s ease;
-  border-radius: 0;
+  transition: all 0.3s ease;
+  border-radius: 8px;
   padding: 0;
   margin: 0;
+  opacity: 0;
 }
-.poster-carousel-btn:hover { background: rgba(15, 17, 17, 0.55); }
-.poster-carousel-btn .material-symbols-rounded { font-size: 40px; font-weight: 300; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-.poster-prev-btn { left: 0; }
-.poster-next-btn { right: 0; }
 
-/* ── Dot Indicators ────────────────────────────────────── */
+.poster-container:hover .poster-carousel-btn {
+  opacity: 1;
+}
+
+.poster-carousel-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.poster-carousel-btn .material-symbols-rounded {
+  font-size: 32px;
+  font-weight: 300;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.poster-prev-btn {
+  left: 16px;
+}
+
+.poster-next-btn {
+  right: 16px;
+}
+
+/* ── Dot Indicators — Modern pill style ────────────────── */
 .poster-dots {
   position: absolute;
-  bottom: 25px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .poster-dot {
-  width: 10px; height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.45);
+  background: rgba(255, 255, 255, 0.35);
   cursor: pointer;
-  transition: all 0.25s ease;
-  border: 1px solid rgba(255,255,255,0.3);
-}
-.poster-dot.active {
-  background: #fff;
-  transform: scale(1.25);
-  border-color: #fff;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
 }
 
-/* ── Bottom Gradient Overlay (removed — was covering carousel arrows) ── */
+.poster-dot.active {
+  background: #fff;
+  width: 28px;
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+/* ── Bottom Gradient Overlay (removed) ── */
 .hero-gradient-overlay {
   display: none;
 }
 
-/* ── Main Content Overlap ──────────────────────────────── */
+/* ── Shimmer Poster ────────────────────────────────────── */
+.shimmer-poster {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(110deg, #1a1a2e 25%, #252545 37%, #1a1a2e 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Main Content ──────────────────────────────────────── */
 .main-content {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
 }
 
-.categories-section { margin-bottom: 1.5rem; }
-.section-header { margin-bottom: 1.5rem; }
-.section-header h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
+.categories-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* ══════════════════════════════════════════════════════════
+   HERO RESPONSIVE BREAKPOINTS
+   ══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .premium-hero .poster-container {
+    height: 220px;
+  }
+
+  .poster-overlay-content {
+    padding: 1.25rem 1.5rem;
+    max-width: 65%;
+    gap: 0.5rem;
+  }
+
+  .poster-title {
+    font-size: 1.15rem;
+  }
+
+  .poster-discount-tag {
+    font-size: 0.75rem;
+    padding: 3px 10px;
+  }
+
+  .poster-shop-btn {
+    padding: 8px 20px;
+    font-size: 0.8rem;
+  }
+
+  .poster-carousel-btn {
+    opacity: 1;
+    width: 36px;
+    height: 60px;
+  }
+
+  .poster-carousel-btn .material-symbols-rounded {
+    font-size: 24px;
+  }
+
+  .poster-dots {
+    bottom: 10px;
+    gap: 5px;
+    padding: 4px 8px;
+  }
+
+  .poster-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .poster-dot.active {
+    width: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .premium-hero .poster-container {
+    height: 180px;
+  }
+
+  .poster-overlay-content {
+    padding: 0.75rem 1rem;
+    max-width: 72%;
+    gap: 0.4rem;
+  }
+
+  .poster-title {
+    font-size: 0.95rem;
+  }
+
+  .poster-carousel-btn {
+    display: none;
+  }
+}
+
+@media (max-width: 400px) {
+  .premium-hero .poster-container {
+    height: 160px;
+  }
+
+  .poster-overlay-content {
+    max-width: 80%;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .poster-title {
+    font-size: 0.88rem;
+  }
+}
