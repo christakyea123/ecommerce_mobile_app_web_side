@@ -29,17 +29,18 @@
   background: var(--surface-color);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: none;
+  border: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
   position: relative;
   cursor: pointer;
 }
 .product-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border-color: #d0d0d0;
 }
 
 .product-image-container {
@@ -57,7 +58,7 @@
   object-fit: cover;
   transition: transform 0.5s ease;
 }
-.product-card:hover .product-image { transform: scale(1.05); }
+.product-card:hover .product-image { transform: scale(1.08); }
 
 .product-info {
   padding: 0.75rem;
@@ -146,44 +147,49 @@
 .jumia-card {
   background: #fff;
   box-shadow: none !important;
-  border: none !important;
-  border-radius: 4px !important;
-  padding: 8px;
+  border: 1px solid #eee !important;
+  border-radius: 8px !important;
+  padding: 0;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
 }
 .jumia-card:hover {
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
-  transform: none !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+  transform: translateY(-3px) !important;
+  border-color: #d0d0d0 !important;
 }
 
 .jumia-img-container {
   position: relative;
-  background: transparent !important;
+  background: #f9fafb !important;
   height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
 }
-.jumia-img-container img { max-height: 100%; object-fit: contain; }
+.jumia-img-container img { max-height: 100%; object-fit: contain; transition: transform 0.4s ease; }
+.jumia-card:hover .jumia-img-container img { transform: scale(1.06); }
 
 .jumia-discount-tag {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  background: #fdf0e9;
-  color: #f68b1e;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  top: 8px;
+  right: 8px;
+  background: linear-gradient(135deg, #fdf0e9, #fff5ee);
+  color: #e07b19;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
   font-weight: 700;
-  border: 1px solid #f68b1e;
+  border: 1px solid rgba(246, 139, 30, 0.3);
   z-index: 10;
+  backdrop-filter: blur(4px);
 }
 
 .jumia-info {
-  padding: 10px 0 0 0 !important;
+  padding: 12px 10px 10px !important;
   display: flex;
   flex-direction: column;
 }
@@ -202,7 +208,7 @@
 .jumia-price {
   font-size: 1.15rem !important;
   font-weight: 700 !important;
-  color: #000;
+  color: #0f1111;
   margin-bottom: 2px;
 }
 

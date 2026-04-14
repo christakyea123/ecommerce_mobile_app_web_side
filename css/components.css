@@ -168,3 +168,100 @@
 .rv-card img { width: 150px; height: 150px; object-fit: contain; background: #f7f7f7; border-radius: 4px; border: 1px solid #e3e6e6; }
 .rv-card .rv-title { font-size: 0.8rem; color: #007185; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; }
 .rv-card .rv-price { font-size: 0.9rem; font-weight: 700; color: #0f1111; margin-top: 2px; }
+
+/* ── Mobile Floating Cart FAB ─────────────────────────── */
+.mobile-cart-fab {
+  display: none; /* Hidden on desktop, shown via media query */
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 998;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f68b1e, #e07b19);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 24px rgba(246, 139, 30, 0.4), 0 2px 8px rgba(0,0,0,0.15);
+  opacity: 0;
+  transform: scale(0) translateY(20px);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.mobile-cart-fab.visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.mobile-cart-fab .material-symbols-rounded {
+  font-size: 28px;
+}
+.mobile-cart-fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Pop animation on update */
+@keyframes fabPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.mobile-cart-fab.fab-pop {
+  animation: fabPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Cart icon bounce animation */
+@keyframes cartIconBounce {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.25) rotate(-5deg); }
+  50% { transform: scale(0.95) rotate(3deg); }
+  75% { transform: scale(1.1) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.icon-btn.cart-bounce {
+  animation: cartIconBounce 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Show FAB only on mobile/tablet */
+@media (max-width: 768px) {
+  .mobile-cart-fab {
+    display: flex;
+  }
+  /* Move back-to-top FAB to the left to avoid overlap */
+  .back-to-top-fab {
+    left: 16px;
+    right: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-cart-fab {
+    width: 54px;
+    height: 54px;
+    bottom: 20px;
+    right: 16px;
+  }
+  .mobile-cart-fab .material-symbols-rounded {
+    font-size: 24px;
+  }
+  .mobile-cart-fab-badge {
+    width: 20px;
+    height: 20px;
+    font-size: 0.65rem;
+  }
+}

@@ -23,6 +23,18 @@ let state = {
     recentlyViewed: JSON.parse(localStorage.getItem('glomek_recently_viewed') || '[]')
 };
 
+// ====== UTILS ====== //
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+         .toString()
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+}
+
 // Google Client ID — replace with your Web OAuth Client ID from Google Cloud Console
 const GOOGLE_CLIENT_ID = '838499932642-cefp9vil64rradgm25erogct7cqcu1j3.apps.googleusercontent.com';
 
@@ -38,6 +50,7 @@ const UI = {
     emptyMessage: document.getElementById('emptyMessage'),
     loadingMore: document.getElementById('loadingMore'),
     cartBadge: document.getElementById('cartBadge'),
+    pdCartBadge: document.getElementById('pdCartBadge'),
     cartOverlay: document.getElementById('cartOverlay'),
     cartSidebar: document.getElementById('cartSidebar'),
     cartItemsContainer: document.getElementById('cartItems'),
@@ -209,6 +222,9 @@ function setupEventListeners() {
     // Initialize wishlist UI
     updateWishlistBadge();
     renderRecentlyViewed();
+    
+    // Setup Product Detail Swipe
+    setupPdImageSwipe();
 }
 
 async function loadInitialData() {
@@ -581,6 +597,20 @@ window.addToCart = function (id, encodedProduct) {
         void UI.cartBadge.offsetWidth;
         UI.cartBadge.classList.add('pulse');
     }
+    if (UI.pdCartBadge) {
+        UI.pdCartBadge.classList.remove('pulse');
+        void UI.pdCartBadge.offsetWidth;
+        UI.pdCartBadge.classList.add('pulse');
+    }
+
+    // Animate the navbar cart icon
+    if (UI.cartToggleBtn) {
+        UI.cartToggleBtn.classList.add('cart-bounce');
+        setTimeout(() => UI.cartToggleBtn.classList.remove('cart-bounce'), 600);
+    }
+
+    // Show floating cart FAB on mobile
+    showMobileCartFab();
 
     showToast(`${product.name} added to cart`, "success");
 }
@@ -615,9 +645,16 @@ function updateCartUI() {
     if (count > 0) {
         UI.cartBadge.textContent = count;
         UI.cartBadge.hidden = false;
+        if (UI.pdCartBadge) {
+            UI.pdCartBadge.textContent = count;
+            UI.pdCartBadge.hidden = false;
+        }
         UI.checkoutBtn.disabled = false;
     } else {
         UI.cartBadge.hidden = true;
+        if (UI.pdCartBadge) {
+            UI.pdCartBadge.hidden = true;
+        }
         UI.checkoutBtn.disabled = true;
     }
 
@@ -653,6 +690,9 @@ function updateCartUI() {
         UI.cartItemsContainer.innerHTML = itemsHtml;
     }
     UI.cartTotal.textContent = formatPrice(total);
+
+    // Update mobile floating cart FAB
+    showMobileCartFab();
 }
 
 function toggleCart(show) {
@@ -664,6 +704,40 @@ function toggleCart(show) {
         UI.cartSidebar.classList.remove('open');
         UI.cartOverlay.classList.remove('active');
         document.body.style.overflow = '';
+    }
+}
+
+
+// ====== MOBILE FLOATING CART FAB ====== //
+function showMobileCartFab() {
+    const count = state.cart.length;
+    let fab = document.getElementById('mobileCartFab');
+
+    if (count === 0) {
+        if (fab) fab.classList.remove('visible');
+        return;
+    }
+
+    if (!fab) {
+        fab = document.createElement('button');
+        fab.id = 'mobileCartFab';
+        fab.className = 'mobile-cart-fab';
+        fab.innerHTML = `
+            <span class="material-symbols-rounded">shopping_cart</span>
+            <span class="mobile-cart-fab-badge" id="mobileCartFabBadge">${count}</span>
+        `;
+        fab.addEventListener('click', () => toggleCart(true));
+        document.body.appendChild(fab);
+        // Trigger entrance animation on next frame
+        requestAnimationFrame(() => fab.classList.add('visible'));
+    } else {
+        const badge = document.getElementById('mobileCartFabBadge');
+        if (badge) badge.textContent = count;
+        fab.classList.add('visible');
+        // Pop animation on update
+        fab.classList.remove('fab-pop');
+        void fab.offsetWidth;
+        fab.classList.add('fab-pop');
     }
 }
 
@@ -1296,9 +1370,23 @@ function populateProductDetail(product) {
     const safeProductObj = { _id: product._id || product.sId, name: product.name, price: price, image: currentPdImages[0] };
     const prodJson = encodeURIComponent(JSON.stringify(safeProductObj));
 
-    document.getElementById('pdAddToCartBtn').onclick = () => {
+    const addToCartBtn = document.getElementById('pdAddToCartBtn');
+    addToCartBtn.onclick = () => {
         addToCart(safeProductObj._id, prodJson);
-        closeModal('productDetailModal');
+        // Show visual feedback on the button
+        const originalHTML = addToCartBtn.innerHTML;
+        addToCartBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size:20px;vertical-align:middle;margin-right:4px;">check_circle</span> Added to Cart!';
+        addToCartBtn.style.background = '#00c853';
+        addToCartBtn.style.color = '#fff';
+        addToCartBtn.style.border = '1px solid #00a843';
+        addToCartBtn.disabled = true;
+        setTimeout(() => {
+            addToCartBtn.innerHTML = originalHTML;
+            addToCartBtn.style.background = '';
+            addToCartBtn.style.color = '';
+            addToCartBtn.style.border = '';
+            addToCartBtn.disabled = false;
+        }, 1800);
     };
     document.getElementById('pdBuyNowBtn').onclick = () => {
         if (!currentUser) {
@@ -1515,6 +1603,25 @@ window.prevPdImage = function (e) {
     fadeToPdImage((currentPdIndex - 1 + currentPdImages.length) % currentPdImages.length);
 }
 
+function setupPdImageSwipe() {
+    let touchStartX = 0, touchEndX = 0;
+    const container = document.getElementById('pdMainImgContainer');
+    if (!container) return;
+
+    container.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    container.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0) window.nextPdImage();
+            else window.prevPdImage();
+        }
+    }, { passive: true });
+}
+
 // ====== MODAL UTILS ====== //
 window.openModal = function (id) {
     const el = document.getElementById(id);
@@ -1575,11 +1682,12 @@ function updateProductCount() {
     const el = document.getElementById('productCountText');
     if (!el) return;
     const count = state.products.length;
+    
     if (state.searchKeyword) {
-        el.innerHTML = `Showing <strong>${count}</strong> result${count !== 1 ? 's' : ''} for "<strong>${state.searchKeyword}</strong>"`;
+        el.innerHTML = `Showing <strong>${count}</strong> result${count !== 1 ? 's' : ''} for "<strong>${escapeHtml(state.searchKeyword)}</strong>"`;
     } else if (state.selectedCategoryId) {
         const cat = state.categories.find(c => c._id === state.selectedCategoryId);
-        el.innerHTML = `Showing <strong>${count}</strong> result${count !== 1 ? 's' : ''} in <strong>${cat ? cat.name : 'category'}</strong>`;
+        el.innerHTML = `Showing <strong>${count}</strong> result${count !== 1 ? 's' : ''} in <strong>${escapeHtml(cat ? cat.name : 'category')}</strong>`;
     } else {
         el.innerHTML = `Showing <strong>${count}</strong> product${count !== 1 ? 's' : ''}`;
     }
@@ -1596,9 +1704,9 @@ function updateBreadcrumbs() {
         if (cat) {
             html += '<span class="breadcrumb-sep">›</span>';
             if (state.selectedSubCategoryId) {
-                html += `<a href="#" onclick="filterByCategory('${cat._id}'); return false;">${cat.name}</a>`;
+                html += `<a href="#" onclick="filterByCategory('${cat._id}'); return false;">${escapeHtml(cat.name)}</a>`;
             } else {
-                html += `<span class="breadcrumb-current">${cat.name}</span>`;
+                html += `<span class="breadcrumb-current">${escapeHtml(cat.name)}</span>`;
             }
         }
     }
@@ -1606,12 +1714,12 @@ function updateBreadcrumbs() {
         const subCat = state.subCategories.find(s => s._id === state.selectedSubCategoryId);
         if (subCat) {
             html += '<span class="breadcrumb-sep">›</span>';
-            html += `<span class="breadcrumb-current">${subCat.name}</span>`;
+            html += `<span class="breadcrumb-current">${escapeHtml(subCat.name)}</span>`;
         }
     }
     if (state.searchKeyword) {
         html += '<span class="breadcrumb-sep">›</span>';
-        html += `<span class="breadcrumb-current">Search: "${state.searchKeyword}"</span>`;
+        html += `<span class="breadcrumb-current">Search: "${escapeHtml(state.searchKeyword)}"</span>`;
     }
     nav.innerHTML = html;
 }

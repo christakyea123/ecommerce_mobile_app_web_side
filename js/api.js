@@ -83,7 +83,7 @@ class ApiService {
     }
 
     static async googleLogin(email, name) {
-        return this._post('users/google-login', { email, name });
+        return this._post('users/google-login', { email: email.toLowerCase(), name });
     }
 
     static async forgotPassword(email) {

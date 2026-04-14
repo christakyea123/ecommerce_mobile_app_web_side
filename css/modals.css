@@ -212,6 +212,47 @@
   color: var(--accent-color) !important;
 }
 
+.pd-cart-icon-btn {
+  top: 20px !important;
+  right: 74px !important;
+  position: fixed !important;
+  z-index: 2000;
+  background: #fff !important;
+  color: #0f1111 !important;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid #D5D9D9 !important;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pd-cart-icon-btn:hover {
+  background: #f7f8f8 !important;
+  color: var(--accent-color) !important;
+}
+
+.pd-cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+}
+
 /* ── PD Layout (3-column) ──────────────────────────────── */
 .pd-layout {
   display: flex;
