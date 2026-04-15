@@ -81,6 +81,78 @@
 }
 .search-submit-btn:hover { background: var(--accent-hover); }
 
+/* ── Search Loading State ──────────────────────────────── */
+.search-bar-wrapper.searching {
+  box-shadow: 0 0 0 2px var(--accent-color);
+  animation: searchPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes searchPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--accent-color); }
+  50% { box-shadow: 0 0 0 3px rgba(246, 139, 30, 0.5); }
+}
+
+.search-submit-btn.loading {
+  pointer-events: none;
+  position: relative;
+  color: transparent;
+}
+
+.search-submit-btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2.5px solid rgba(17, 17, 17, 0.25);
+  border-top-color: #111;
+  border-radius: 50%;
+  animation: searchSpin 0.6s linear infinite;
+}
+
+@keyframes searchSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Search progress bar below navbar */
+.search-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: transparent;
+  overflow: hidden;
+  z-index: 101;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.search-progress-bar.active {
+  opacity: 1;
+}
+
+.search-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-color), #FFD814, var(--accent-color), transparent);
+  border-radius: 2px;
+  animation: searchProgressSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes searchProgressSlide {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+
 /* ── Nav Action Icons ──────────────────────────────────── */
 .nav-actions { display: flex; gap: 1rem; }
 

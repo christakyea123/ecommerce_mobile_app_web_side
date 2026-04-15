@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
+    setupAccessibility();
+    setupOfflineDetection();
 });
 
 let state = {
@@ -59,6 +61,32 @@ const UI = {
     closeCartBtn: document.getElementById('closeCartBtn'),
     checkoutBtn: document.getElementById('checkoutBtn'),
 };
+
+// ===== SEARCH LOADING INDICATOR ===== //
+function showSearchLoading() {
+    const searchBar = document.querySelector('.search-bar-wrapper');
+    const searchBtn = document.querySelector('.search-submit-btn');
+    const progressBar = document.getElementById('searchProgressBar');
+    if (searchBar) searchBar.classList.add('searching');
+    if (searchBtn) {
+        searchBtn.classList.add('loading');
+        searchBtn.setAttribute('data-original-text', searchBtn.textContent);
+    }
+    if (progressBar) progressBar.classList.add('active');
+}
+
+function hideSearchLoading() {
+    const searchBar = document.querySelector('.search-bar-wrapper');
+    const searchBtn = document.querySelector('.search-submit-btn');
+    const progressBar = document.getElementById('searchProgressBar');
+    if (searchBar) searchBar.classList.remove('searching');
+    if (searchBtn) {
+        searchBtn.classList.remove('loading');
+        const originalText = searchBtn.getAttribute('data-original-text');
+        if (originalText) searchBtn.textContent = originalText;
+    }
+    if (progressBar) progressBar.classList.remove('active');
+}
 
 // ===== TOAST NOTIFICATION SYSTEM ===== //
 function showToast(message, type = 'info') {
@@ -175,8 +203,19 @@ function setupEventListeners() {
             state.searchKeyword = UI.searchInput.value.trim();
             state.currentPage = 1;
             loadProducts();
+            UI.searchInput.blur();
         });
     }
+
+    UI.searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            state.searchKeyword = UI.searchInput.value.trim();
+            state.currentPage = 1;
+            loadProducts();
+            UI.searchInput.blur();
+        }
+    });
 
     UI.clearSearchBtn.addEventListener('click', () => {
         UI.searchInput.value = '';
@@ -213,17 +252,15 @@ function setupEventListeners() {
         }
     });
 
-    // Load persisted Cart from LocalStorage
     const savedCart = localStorage.getItem('glomek_cart');
     if (savedCart) {
         state.cart = JSON.parse(savedCart);
         updateCartUI();
     }
-    // Initialize wishlist UI
     updateWishlistBadge();
     renderRecentlyViewed();
+    updatePageTitle();
     
-    // Setup Product Detail Swipe
     setupPdImageSwipe();
 }
 
@@ -252,6 +289,7 @@ async function loadInitialData() {
 async function loadProducts(isPagination = false) {
     if (state.isLoading) return;
     state.isLoading = true;
+    showSearchLoading();
 
     if (!isPagination) {
         state.products = [];
@@ -259,6 +297,20 @@ async function loadProducts(isPagination = false) {
         UI.productSectionTitle.textContent = state.searchKeyword ? `Search Results for "${state.searchKeyword}"` : "Featured Products";
         UI.emptyState.hidden = true;
         UI.productGrid.hidden = false;
+
+        // Hide hero/posters and category nav when searching (Amazon-style)
+        const heroWrapper = document.querySelector('.hero-wrapper');
+        const categoryNavWrapper = document.querySelector('.category-nav-wrapper');
+        const recentlyViewed = document.getElementById('recentlyViewedSection');
+        if (state.searchKeyword) {
+            if (heroWrapper) heroWrapper.style.display = 'none';
+            if (categoryNavWrapper) categoryNavWrapper.style.display = 'none';
+            if (recentlyViewed) recentlyViewed.style.display = 'none';
+        } else {
+            if (heroWrapper) heroWrapper.style.display = '';
+            if (categoryNavWrapper) categoryNavWrapper.style.display = '';
+            if (recentlyViewed) recentlyViewed.style.display = '';
+        }
 
         const oldRecs = document.getElementById('recsGrid');
         if (oldRecs) oldRecs.remove();
@@ -269,6 +321,14 @@ async function loadProducts(isPagination = false) {
     }
 
     const fetchedProducts = await ApiService.fetchProducts(state.currentPage, 50, state.searchKeyword);
+
+    // Network error check — show retry UI if offline and no results
+    if (!fetchedProducts || (fetchedProducts.length === 0 && !navigator.onLine)) {
+        showNetworkError();
+        state.isLoading = false;
+        hideSearchLoading();
+        return;
+    }
 
     if (isPagination) {
         state.allProducts = [...state.allProducts, ...fetchedProducts];
@@ -321,6 +381,16 @@ async function loadProducts(isPagination = false) {
 
     UI.loadingMore.hidden = true;
     state.isLoading = false;
+    hideSearchLoading();
+
+    // Auto-scroll to results when searching (industry standard)
+    if (state.searchKeyword && !isPagination) {
+        const prodSec = document.querySelector('.products-section');
+        if (prodSec) setTimeout(() => prodSec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    }
+
+    // Update page title with context
+    updatePageTitle();
 }
 
 async function showEmptySearchState() {
@@ -693,6 +763,8 @@ function updateCartUI() {
 
     // Update mobile floating cart FAB
     showMobileCartFab();
+    // Update page title with cart count
+    updatePageTitle();
 }
 
 function toggleCart(show) {
@@ -2500,4 +2572,111 @@ window.downloadOrderPDF = function(order) {
     img.onerror = function() {
         showToast('Error loading logo. Please check connection.', 'error');
     };
+}
+
+// ====== DYNAMIC PAGE TITLE (Industry Standard) ====== //
+function updatePageTitle() {
+    const cartCount = state.cart.length;
+    const base = 'Glomek — Shop Premium Products Online';
+    if (state.searchKeyword) {
+        document.title = `"${state.searchKeyword}" — Search Results | Glomek`;
+    } else if (state.selectedCategoryId) {
+        const cat = state.categories.find(c => c._id === state.selectedCategoryId);
+        document.title = cat ? `${cat.name} — Glomek` : base;
+    } else {
+        document.title = cartCount > 0 ? `(${cartCount}) ${base}` : base;
+    }
+}
+
+// ====== ACCESSIBILITY (Industry Standard) ====== //
+function setupAccessibility() {
+    // Add ARIA labels to interactive buttons
+    const ariaMap = [
+        ['#cartToggleBtn', 'Open shopping cart'],
+        ['#wishlistToggleBtn', 'Open saved items'],
+        ['.user-btn', 'Open account menu'],
+        ['#closeCartBtn', 'Close cart'],
+        ['#closeWishlistBtn', 'Close saved items'],
+        ['#backToTopFab', 'Scroll back to top'],
+        ['.search-submit-btn', 'Search products'],
+        ['#clearSearchBtn', 'Clear search'],
+    ];
+    ariaMap.forEach(([sel, label]) => {
+        const el = document.querySelector(sel);
+        if (el) {
+            el.setAttribute('aria-label', label);
+            if (!el.getAttribute('role') && el.tagName !== 'BUTTON') el.setAttribute('role', 'button');
+        }
+    });
+
+    // Escape key to close modals (industry standard)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            // Close topmost open modal
+            const modals = ['productDetailModal', 'receiptModal', 'checkoutModal', 'profileModal', 'authModal', 'forgotPasswordModal', 'resetPasswordModal'];
+            for (const id of modals) {
+                const modal = document.getElementById(id);
+                if (modal && !modal.hidden) {
+                    closeModal(id);
+                    return;
+                }
+            }
+            // Close sidebars
+            if (UI.cartSidebar.classList.contains('open')) { toggleCart(false); return; }
+            const ws = document.getElementById('wishlistSidebar');
+            if (ws && ws.classList.contains('open')) { toggleWishlist(false); }
+        }
+    });
+}
+
+// ====== OFFLINE / ONLINE DETECTION (Industry Standard) ====== //
+function setupOfflineDetection() {
+    let offlineBanner = null;
+
+    function showOfflineBanner() {
+        if (offlineBanner) return;
+        offlineBanner = document.createElement('div');
+        offlineBanner.id = 'offlineBanner';
+        offlineBanner.className = 'offline-banner';
+        offlineBanner.innerHTML = `
+            <span class="material-symbols-rounded" style="font-size:18px;">wifi_off</span>
+            <span>You're offline. Check your connection.</span>
+        `;
+        document.body.prepend(offlineBanner);
+        requestAnimationFrame(() => offlineBanner.classList.add('visible'));
+    }
+
+    function hideOfflineBanner() {
+        if (!offlineBanner) return;
+        offlineBanner.classList.remove('visible');
+        setTimeout(() => {
+            if (offlineBanner) { offlineBanner.remove(); offlineBanner = null; }
+        }, 400);
+        showToast('You\'re back online!', 'success');
+    }
+
+    window.addEventListener('offline', showOfflineBanner);
+    window.addEventListener('online', hideOfflineBanner);
+    if (!navigator.onLine) showOfflineBanner();
+}
+
+// ====== NETWORK ERROR RETRY (Industry Standard) ====== //
+function showNetworkError() {
+    UI.productGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align:center; padding: 3rem 1rem;">
+            <span class="material-symbols-rounded" style="font-size:3.5rem; color:#ccc; display:block; margin-bottom:1rem;">cloud_off</span>
+            <h3 style="font-size:1.2rem; color:#0f1111; margin-bottom:0.5rem;">Something went wrong</h3>
+            <p style="color:#565959; margin-bottom:1.5rem;">Please check your internet connection and try again.</p>
+            <button onclick="retryLoadProducts()" class="checkout-btn" style="width:auto; padding: 0.6rem 2rem; display:inline-flex; align-items:center; gap:8px;">
+                <span class="material-symbols-rounded" style="font-size:20px;">refresh</span>
+                Try Again
+            </button>
+        </div>
+    `;
+}
+
+window.retryLoadProducts = function() {
+    state.isLoading = false;
+    state.currentPage = 1;
+    loadProducts();
 }
