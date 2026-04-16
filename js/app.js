@@ -127,7 +127,7 @@ function renderGoogleButton() {
             client_id: GOOGLE_CLIENT_ID,
             callback: handleGoogleCredentialResponse
         });
-        window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", width: "100%" });
+        window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", type: "standard" });
     } else {
         // Fallback: render a styled Google button that shows a prompt
         container.innerHTML = `

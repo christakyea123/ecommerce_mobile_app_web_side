@@ -117,10 +117,12 @@
   .pd-buybox .pd-add-to-cart-btn,
   .pd-buybox .pd-buy-now-btn {
     flex: 1;
+    width: auto !important;
     margin-top: 0 !important;
     padding: 0.75rem 1rem !important;
     font-size: 0.95rem !important;
     min-height: 44px;
+    white-space: nowrap;
   }
 
   .pd-modal-content {
@@ -407,6 +409,13 @@
   .pd-close {
     top: 10px !important;
     right: 10px !important;
+    width: 38px;
+    height: 38px;
+  }
+
+  .pd-cart-icon-btn {
+    top: 10px !important;
+    right: 58px !important;
     width: 38px;
     height: 38px;
   }
@@ -1350,7 +1359,15 @@
     height: 34px;
   }
 
-  .pd-close .material-symbols-rounded {
+  .pd-cart-icon-btn {
+    top: 8px !important;
+    right: 50px !important;
+    width: 34px;
+    height: 34px;
+  }
+
+  .pd-close .material-symbols-rounded,
+  .pd-cart-icon-btn .material-symbols-rounded {
     font-size: 20px;
   }
 
