@@ -196,6 +196,18 @@
     font-size: 0.9rem;
   }
 
+  /* ── Search suggestions responsive ──────────────────────── */
+  .search-suggestions {
+    max-height: 350px;
+    border-radius: 0 0 6px 6px;
+  }
+
+  .search-suggestion-item {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    gap: 10px;
+  }
+
   .nav-actions {
     gap: 0.5rem;
   }
@@ -707,6 +719,26 @@
   .search-input {
     padding: 0 0.75rem;
     font-size: 0.85rem;
+  }
+
+  .search-suggestions {
+    max-height: 300px;
+    left: 0;
+    right: 0;
+  }
+
+  .search-suggestion-item {
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    gap: 8px;
+  }
+
+  .search-suggestion-item .suggestion-category {
+    display: none;
+  }
+
+  .search-suggestion-item .suggestion-fill {
+    display: none;
   }
 
   .icon-btn {

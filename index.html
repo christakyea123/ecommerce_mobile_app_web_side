@@ -9,6 +9,8 @@
         content="Discover 50,000+ authentic products on Glomek. Shop electronics, fashion, home & more with secure payments (MTN MoMo, Visa, Cash on Delivery) and fast Ghana-wide delivery.">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#131921">
+    <link rel="icon" type="image/png" href="assets/logo/Glomek%20App%20Logo2.png">
+    <link rel="apple-touch-icon" href="assets/logo/Glomek%20App%20Logo2.png">
     <link rel="canonical" href="https://glomek.com/">
 
     <!-- Open Graph / Social -->
@@ -106,11 +108,14 @@
 
             <div class="search-container">
                 <div class="search-bar-wrapper">
-                    <input type="text" id="searchInput" class="search-input" placeholder="Search on glomek...">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search on glomek..." autocomplete="off">
                     <button class="clear-btn" id="clearSearchBtn" hidden>
                         <span class="material-symbols-rounded">close</span>
                     </button>
-                    <button class="search-submit-btn">Search</button>
+                    <button class="search-submit-btn" id="searchSubmitBtn">Search</button>
+                </div>
+                <div class="search-suggestions" id="searchSuggestions" hidden>
+                    <!-- Suggestions populated dynamically -->
                 </div>
             </div>
 

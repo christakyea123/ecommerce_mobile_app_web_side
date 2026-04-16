@@ -182,44 +182,243 @@ async function performGoogleLogin(email, name) {
 }
 
 function setupEventListeners() {
-    // Search with debounce
-    let searchTimeout;
+    // ========== AMAZON-STYLE SEARCH (no search-on-type) ========== //
+    const suggestionsBox = document.getElementById('searchSuggestions');
+    let suggestionIndex = -1; // keyboard nav index
+    let suggestionsVisible = false;
+
+    // Load search history from localStorage
+    function getSearchHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('glomek_search_history') || '[]');
+        } catch { return []; }
+    }
+
+    function saveSearchHistory(term) {
+        if (!term || term.length < 2) return;
+        let history = getSearchHistory();
+        // Remove duplicates (case-insensitive)
+        history = history.filter(h => h.toLowerCase() !== term.toLowerCase());
+        history.unshift(term); // newest first
+        if (history.length > 10) history = history.slice(0, 10);
+        localStorage.setItem('glomek_search_history', JSON.stringify(history));
+    }
+
+    function removeSearchHistoryItem(term) {
+        let history = getSearchHistory();
+        history = history.filter(h => h.toLowerCase() !== term.toLowerCase());
+        localStorage.setItem('glomek_search_history', JSON.stringify(history));
+    }
+
+    // Build suggestions from history + local product/category data
+    function buildSuggestions(query) {
+        const suggestions = [];
+        const q = query.toLowerCase().trim();
+        const history = getSearchHistory();
+
+        // 1) Search history matches
+        const historyMatches = q.length === 0
+            ? history.slice(0, 6)
+            : history.filter(h => h.toLowerCase().includes(q)).slice(0, 4);
+
+        historyMatches.forEach(h => {
+            suggestions.push({ type: 'history', text: h, icon: 'history' });
+        });
+
+        if (q.length >= 2) {
+            // 2) Category matches
+            state.categories.forEach(cat => {
+                if (cat.name && cat.name.toLowerCase().includes(q) && suggestions.length < 12) {
+                    // Avoid duplicates
+                    if (!suggestions.some(s => s.text.toLowerCase() === cat.name.toLowerCase())) {
+                        suggestions.push({ type: 'category', text: cat.name, icon: 'category', category: 'in Categories' });
+                    }
+                }
+            });
+
+            // 3) Product name matches (from already-loaded products)
+            const seenNames = new Set();
+            const allProds = state.allProducts || state.products || [];
+            allProds.forEach(p => {
+                if (suggestions.length >= 12) return;
+                if (p.name && p.name.toLowerCase().includes(q)) {
+                    // Use a simplified/shortened version for suggestion
+                    const shortName = p.name.length > 60 ? p.name.substring(0, 57) + '...' : p.name;
+                    const key = shortName.toLowerCase();
+                    if (!seenNames.has(key) && !suggestions.some(s => s.text.toLowerCase() === key)) {
+                        seenNames.add(key);
+                        const catName = p.proCategoryId ? (p.proCategoryId.name || '') : '';
+                        suggestions.push({ type: 'product', text: shortName, fullText: p.name, icon: 'search', category: catName ? `in ${catName}` : '' });
+                    }
+                }
+            });
+        }
+
+        return suggestions;
+    }
+
+    // Render suggestions dropdown
+    function showSuggestions(query) {
+        const suggestions = buildSuggestions(query);
+        if (suggestions.length === 0) {
+            hideSuggestions();
+            return;
+        }
+
+        suggestionIndex = -1;
+        const q = query.toLowerCase().trim();
+
+        let html = '';
+        let lastType = '';
+
+        suggestions.forEach((s, idx) => {
+            // Section dividers
+            if (s.type !== lastType) {
+                if (s.type === 'history' && q.length === 0) {
+                    html += `<div class="search-suggestions-divider">Recent Searches</div>`;
+                } else if (s.type === 'category') {
+                    html += `<div class="search-suggestions-divider">Categories</div>`;
+                } else if (s.type === 'product' && lastType !== 'product') {
+                    html += `<div class="search-suggestions-divider">Products</div>`;
+                }
+                lastType = s.type;
+            }
+
+            // Highlight matching text
+            let displayText = escapeHtml(s.text);
+            if (q.length > 0) {
+                const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                displayText = displayText.replace(regex, '<strong>$1</strong>');
+            }
+
+            const deleteBtn = s.type === 'history'
+                ? `<span class="suggestion-fill" onclick="event.stopPropagation(); window._removeSearchHistory('${escapeHtml(s.text)}', ${idx})" title="Remove"><span class="material-symbols-rounded" style="font-size:16px;">close</span></span>`
+                : `<span class="suggestion-fill"><span class="material-symbols-rounded" style="font-size:16px;">north_west</span></span>`;
+
+            html += `
+                <div class="search-suggestion-item" data-index="${idx}" data-text="${escapeHtml(s.fullText || s.text)}"
+                     onclick="window._selectSuggestion('${escapeHtml(s.fullText || s.text)}')">
+                    <span class="suggestion-icon material-symbols-rounded">${s.icon}</span>
+                    <span class="suggestion-text">${displayText}</span>
+                    ${s.category ? `<span class="suggestion-category">${escapeHtml(s.category)}</span>` : ''}
+                    ${deleteBtn}
+                </div>
+            `;
+        });
+
+        suggestionsBox.innerHTML = html;
+        suggestionsBox.hidden = false;
+        suggestionsVisible = true;
+    }
+
+    function hideSuggestions() {
+        if (suggestionsBox) {
+            suggestionsBox.hidden = true;
+            suggestionsBox.innerHTML = '';
+        }
+        suggestionsVisible = false;
+        suggestionIndex = -1;
+    }
+
+    // Perform the actual search
+    function performSearch(keyword) {
+        const term = (keyword || '').trim();
+        if (term.length > 0) {
+            saveSearchHistory(term);
+        }
+        hideSuggestions();
+        state.searchKeyword = term;
+        state.currentPage = 1;
+        UI.searchInput.value = term;
+        UI.clearSearchBtn.hidden = term.length === 0;
+        loadProducts();
+        UI.searchInput.blur();
+    }
+
+    // Global handlers for onclick in suggestion HTML
+    window._selectSuggestion = function (text) {
+        performSearch(text);
+    };
+
+    window._removeSearchHistory = function (text, idx) {
+        removeSearchHistoryItem(text);
+        // Re-render suggestions
+        showSuggestions(UI.searchInput.value.trim());
+    };
+
+    // INPUT: Show/hide clear button + show suggestions (NO search on type)
     UI.searchInput.addEventListener('input', (e) => {
         const val = e.target.value.trim();
         UI.clearSearchBtn.hidden = val.length === 0;
-
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            state.searchKeyword = val;
-            state.currentPage = 1;
-            loadProducts();
-        }, 600);
+        // Show suggestions dropdown (lightweight, no API calls)
+        showSuggestions(val);
     });
 
-    // Search submit button
-    const searchSubmitBtn = document.querySelector('.search-submit-btn');
+    // FOCUS: Show suggestions when focusing search input
+    UI.searchInput.addEventListener('focus', () => {
+        const val = UI.searchInput.value.trim();
+        showSuggestions(val);
+    });
+
+    // Search submit button — performs actual search
+    const searchSubmitBtn = document.getElementById('searchSubmitBtn');
     if (searchSubmitBtn) {
         searchSubmitBtn.addEventListener('click', () => {
-            state.searchKeyword = UI.searchInput.value.trim();
-            state.currentPage = 1;
-            loadProducts();
-            UI.searchInput.blur();
+            performSearch(UI.searchInput.value.trim());
         });
     }
 
+    // Enter key — performs actual search
     UI.searchInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            state.searchKeyword = UI.searchInput.value.trim();
-            state.currentPage = 1;
-            loadProducts();
-            UI.searchInput.blur();
+            if (suggestionIndex >= 0 && suggestionsVisible) {
+                // Select highlighted suggestion
+                const items = suggestionsBox.querySelectorAll('.search-suggestion-item');
+                if (items[suggestionIndex]) {
+                    const text = items[suggestionIndex].getAttribute('data-text');
+                    performSearch(text);
+                }
+            } else {
+                performSearch(UI.searchInput.value.trim());
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (suggestionsVisible) {
+                const items = suggestionsBox.querySelectorAll('.search-suggestion-item');
+                items.forEach(i => i.classList.remove('active'));
+                suggestionIndex = (suggestionIndex + 1) % items.length;
+                items[suggestionIndex].classList.add('active');
+                items[suggestionIndex].scrollIntoView({ block: 'nearest' });
+                // Fill input with suggestion text
+                UI.searchInput.value = items[suggestionIndex].getAttribute('data-text');
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (suggestionsVisible) {
+                const items = suggestionsBox.querySelectorAll('.search-suggestion-item');
+                items.forEach(i => i.classList.remove('active'));
+                suggestionIndex = (suggestionIndex - 1 + items.length) % items.length;
+                items[suggestionIndex].classList.add('active');
+                items[suggestionIndex].scrollIntoView({ block: 'nearest' });
+                UI.searchInput.value = items[suggestionIndex].getAttribute('data-text');
+            }
+        } else if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-container')) {
+            hideSuggestions();
         }
     });
 
     UI.clearSearchBtn.addEventListener('click', () => {
         UI.searchInput.value = '';
         UI.clearSearchBtn.hidden = true;
+        hideSuggestions();
         state.searchKeyword = '';
         state.currentPage = 1;
         loadProducts();
