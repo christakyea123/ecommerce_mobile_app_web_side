@@ -1,0 +1,11 @@
+# Glomek — Robots.txt
+User-agent: *
+Allow: /
+Allow: /pages/glomek-consult.html
+Allow: /pages/about.html
+
+Disallow: /node_modules/
+Disallow: /tests/
+
+# Sitemap
+Sitemap: https://glomek.com/sitemap.xml
