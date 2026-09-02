@@ -3,11 +3,19 @@
    ========================================================================== */
 
 /* ── Base Modal ────────────────────────────────────────── */
+/* CRITICAL: `display: flex` here beats the UA stylesheet's `[hidden] {
+   display: none }`, because an author rule always wins over the UA one. Every
+   closed modal therefore stayed in the render tree — seven full-viewport
+   fixed layers, each carrying its own `backdrop-filter: blur(5px)`, composited
+   over the page from first paint. That is what made the page heavy to scroll
+   and, on touch devices, refuse to scroll at all.
+
+   The rule below puts `[hidden]` back in charge, so a closed modal costs
+   nothing. The blur now applies only while one is actually open. */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(5px);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -17,9 +25,15 @@
   transition: opacity 0.3s ease;
 }
 
+.modal-overlay[hidden] {
+  display: none !important;
+}
+
 .modal-overlay:not([hidden]) {
   opacity: 1;
   pointer-events: auto;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .modal-content {
@@ -98,18 +112,213 @@
   background: #eee;
 }
 
-/* ── Cash on Delivery Notice ───────────────────────────── */
-.cod-notice {
-  background: #fff8f0;
-  border: 1px solid #fde0b5;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  color: #7a4d0b;
-  margin-bottom: 1rem;
+/* ==========================================================================
+   CHECKOUT SHEET — Paystack-only payment picker, address, summary
+   ========================================================================== */
+
+.chk-section {
+  margin-bottom: 1.5rem;
+}
+
+.chk-section-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.chk-section-head .material-symbols-rounded {
+  font-size: 20px;
+  color: var(--accent-color);
+}
+
+/* ── Payment method tiles ──────────────────────────────── */
+.pay-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--surface-color);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pay-method input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pay-method:active {
+  transform: scale(0.99);
+}
+
+.pay-method.selected {
+  border-color: var(--accent-color);
+  background: var(--accent-light);
+}
+
+.pay-method-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--bg-color);
+  color: var(--text-secondary);
+  font-size: 22px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.pay-method.selected .pay-method-icon {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.pay-method-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pay-method-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pay-method-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.pay-method-check {
+  flex-shrink: 0;
+  font-size: 22px;
+  color: var(--accent-color);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.pay-method.selected .pay-method-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pay-secured-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f0f7f2;
+  border: 1px solid #cfe8d8;
+  color: #1c6b3f;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.pay-secured-note .material-symbols-rounded {
+  font-size: 17px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Coupon row ────────────────────────────────────────── */
+.chk-coupon-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.chk-coupon-row .form-input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.chk-coupon-btn {
+  flex-shrink: 0;
+  padding: 0 1.35rem;
+  border: 1.5px solid var(--accent-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent-color);
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.chk-coupon-btn:active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+/* ── Order summary ─────────────────────────────────────── */
+.chk-summary {
+  background: var(--bg-color);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 1.25rem;
+}
+
+.chk-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.chk-summary-row .free {
+  color: #007600;
+  font-weight: 600;
+}
+
+.chk-summary-row.discount {
+  color: #007600;
+}
+
+.chk-summary-row.total {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--glass-border);
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.chk-summary-row.total strong {
+  font-size: 1.2rem;
+}
+
+/* ── Pay CTA ───────────────────────────────────────────── */
+.pay-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pay-cta.is-busy {
+  opacity: 0.75;
+  cursor: progress;
 }
 
 /* ── Order Cards ───────────────────────────────────────── */
@@ -237,11 +446,39 @@
   color: var(--accent-color) !important;
 }
 
+/* ── Share (opens the device share sheet) ──────────────── */
+.pd-share-btn {
+  top: 20px !important;
+  right: 128px !important;
+  position: fixed !important;
+  z-index: 2000;
+  background: #fff;
+  color: #0f1111;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid #D5D9D9;
+  transition: all 0.2s;
+}
+
+.pd-share-btn:hover {
+  background: #f7f8f8;
+  color: var(--accent-color);
+}
+
+.pd-share-btn:active {
+  transform: scale(0.92);
+}
+
 .pd-cart-badge {
   position: absolute;
   top: -4px;
   right: -4px;
-  background: #e74c3c;
+  background: var(--badge-bg);
   color: #fff;
   font-size: 0.72rem;
   font-weight: 800;
@@ -301,12 +538,12 @@
 }
 
 .pd-thumbnail.active {
-  border: 2px solid #007185;
+  border: 2px solid var(--accent-color);
   box-shadow: 0 0 3px rgba(0, 113, 133, 0.5);
 }
 
 .pd-thumbnail:hover {
-  border-color: #007185;
+  border-color: var(--accent-color);
 }
 
 .pd-main-image-container {
@@ -385,7 +622,7 @@
 }
 
 .pd-dot.active {
-  background: #007185;
+  background: var(--accent-color);
 }
 
 /* ── Info Center ───────────────────────────────────────── */
@@ -483,17 +720,17 @@
   font-size: 1rem !important;
   min-height: 44px;
   cursor: pointer;
-  background: #FFD814 !important;
+  background: #f68b1e !important;
   color: #0f1111 !important;
   border-radius: 100px !important;
-  border: 1px solid #FCD200 !important;
+  border: 1px solid #e07b19 !important;
   font-weight: 500 !important;
   box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
   transition: background 0.2s;
 }
 
 .pd-add-to-cart-btn:hover {
-  background: #F7CA00 !important;
+  background: #e07b19 !important;
 }
 
 .pd-buy-now-btn {
@@ -550,12 +787,12 @@
 }
 
 .pd-variant-pill:hover {
-  border-color: #007185 !important;
+  border-color: var(--accent-color) !important;
   background: #e7f4f5 !important;
 }
 
 .pd-variant-pill.selected {
-  border-color: #007185 !important;
+  border-color: var(--accent-color) !important;
   background: #e7f4f5 !important;
   box-shadow: 0 0 0 3px rgba(0, 113, 133, 0.15) !important;
   font-weight: 600 !important;
@@ -574,12 +811,12 @@
 }
 
 .pd-color-swatch:hover {
-  border-color: #007185;
+  border-color: var(--accent-color);
   transform: scale(1.1);
 }
 
 .pd-color-swatch.selected {
-  border-color: #007185;
+  border-color: var(--accent-color);
   box-shadow: 0 0 0 3px rgba(0, 113, 133, 0.2);
   transform: scale(1.1);
 }
@@ -614,7 +851,7 @@
   position: absolute;
   width: 150px;
   height: 150px;
-  border: 2px solid #007185;
+  border: 2px solid var(--accent-color);
   border-radius: 4px;
   background: rgba(0, 113, 133, 0.08);
   pointer-events: none;
@@ -761,7 +998,7 @@
 
 .pd-related-card .rv-title {
   font-size: 0.78rem;
-  color: #007185;
+  color: var(--accent-color);
   margin-top: 5px;
   white-space: nowrap;
   overflow: hidden;

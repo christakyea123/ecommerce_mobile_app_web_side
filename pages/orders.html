@@ -2,10 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Your Orders | Glomek E-Commerce</title>
     <meta name="description" content="View and manage your Glomek orders.">
     <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://paystack.com https://checkout.paystack.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data: blob: https:;
+        connect-src 'self' https://api.glomek.com https://api.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        frame-src https://js.paystack.co https://checkout.paystack.com https://standard.paystack.co https://accounts.google.com;
+        form-action 'self' https://checkout.paystack.com;
+        base-uri 'self';
+        object-src 'none';
+        upgrade-insecure-requests;
+    ">
     <meta name="theme-color" content="#131921">
     <link rel="icon" type="image/png" sizes="any" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
     <link rel="apple-touch-icon" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
@@ -25,6 +38,7 @@
     <link rel="stylesheet" href="../css/components.css">
     <link rel="stylesheet" href="../css/pages.css">
     <link rel="stylesheet" href="../css/responsive.css">
+    <link rel="stylesheet" href="../css/mobile-app.css">
 </head>
 <body>
     <header class="navbar"><div class="nav-container"><div class="logo"><a href="../index.html" style="display:flex;align-items:center;"><img src="../assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo" class="brand-logo"></a></div><div class="nav-actions"><a href="../index.html" class="icon-btn" title="Back to Shop"><span class="material-symbols-rounded">storefront</span></a></div></div></header>
@@ -32,7 +46,7 @@
         <nav class="page-breadcrumb"><a href="../index.html">Home</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">Your Orders</span></nav>
         <div class="page-content-card">
             <h1 class="page-title">Your Orders</h1>
-<section class="page-section"><h2>Order Management</h2><p>View recent orders, track deliveries, and manage returns all in one place.</p><p style="margin-top:1rem;color:#565959;">Please <a href="../index.html" style="color:#007185;">log in on the main store</a> to view your orders.</p></section><section class="page-section"><h2>Need Help with an Order?</h2><ul class="feature-list"><li><span class="material-symbols-rounded">local_shipping</span>Track your delivery in real-time</li><li><span class="material-symbols-rounded">undo</span>Initiate returns within 7 days of delivery</li><li><span class="material-symbols-rounded">support_agent</span>Contact seller or Glomek support</li></ul></section>
+<section class="page-section"><h2>Order Management</h2><p>View recent orders, track deliveries, and manage returns all in one place.</p><p style="margin-top:1rem;color:#565959;">Please <a href="../index.html" style="color:#f68b1e;">log in on the main store</a> to view your orders.</p></section><section class="page-section"><h2>Need Help with an Order?</h2><ul class="feature-list"><li><span class="material-symbols-rounded">local_shipping</span>Track your delivery in real-time</li><li><span class="material-symbols-rounded">undo</span>Initiate returns within 7 days of delivery</li><li><span class="material-symbols-rounded">support_agent</span>Contact Glomek support</li></ul></section>
         </div>
     </div>
     <footer class="amazon-footer"><div class="footer-back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">Back to top</div><div class="footer-links-container"><div class="footer-col"><h3>Get to Know Us</h3><ul><li><a href="about.html">About Glomek</a></li><li><a href="careers.html">Careers</a></li><li><a href="science.html">Glomek Science</a></li><li><a href="glomek-consult.html">Glomek IT Consult</a></li></ul></div><div class="footer-col"><h3>Let Us Help You</h3><ul><li><a href="account.html">Your Account</a></li><li><a href="orders.html">Your Orders</a></li><li><a href="shipping.html">Shipping Rates &amp; Policies</a></li><li><a href="returns.html">Returns &amp; Replacements</a></li><li><a href="help.html">Help</a></li></ul></div></div><div class="footer-bottom"><div class="footer-logo"><a href="../index.html"><img src="../assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo"></a></div><div class="footer-copyright"><ul><li><a href="conditions.html">Conditions of Use</a></li><li><a href="privacy.html">Privacy Notice</a></li><li><a href="health-privacy.html">Consumer Health Data Privacy</a></li></ul><p>&copy; 2026, Glomek.com, Inc. or its affiliates</p></div></div></footer>
@@ -40,5 +54,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
     <script src="../js/api.js" defer></script>
     <script src="../js/orders.js"></script>
+    <script src="../js/mobile-app.js" defer></script>
 </body>
 </html>

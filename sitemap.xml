@@ -82,4 +82,20 @@
     <priority>0.3</priority>
   </url>
 
+  <!-- Press Releases -->
+  <url>
+    <loc>https://glomek.com/pages/press.html</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- Consumer Health Data Privacy -->
+  <url>
+    <loc>https://glomek.com/pages/health-privacy.html</loc>
+    <lastmod>2026-04-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
 </urlset>

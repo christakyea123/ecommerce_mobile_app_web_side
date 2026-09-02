@@ -3,14 +3,42 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Glomek — Shop Premium Products Online | #1 E-Commerce & IT Consulting</title>
     <meta name="description"
         content="Discover 50,000+ authentic products on Glomek. Shop electronics, fashion, home & more with secure payments. Also home to Glomek IT Consult — world-class IT consulting firm and professional website developer.">
     <meta name="robots" content="index, follow">
+    <!--
+        Content Security Policy — the containment layer for injected content.
+
+        'unsafe-inline' is present for script-src because the UI is built with
+        inline onclick handlers. It is the weakest part of this policy and the
+        one to remove once those become delegated listeners. Even with it, this
+        still blocks the payoff step of most XSS: script cannot be loaded from
+        an attacker's domain, data cannot be exfiltrated to one (connect-src),
+        forms cannot post to one (form-action), plugins are off (object-src),
+        and <base> cannot be hijacked to re-root every relative URL (base-uri).
+
+        frame-ancestors is ignored in a meta tag — serve it as a real header,
+        or an X-Frame-Options header, to stop clickjacking.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://paystack.com https://checkout.paystack.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data: blob: https:;
+        connect-src 'self' https://api.glomek.com https://api.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        frame-src https://js.paystack.co https://checkout.paystack.com https://standard.paystack.co https://accounts.google.com;
+        form-action 'self' https://checkout.paystack.com;
+        base-uri 'self';
+        object-src 'none';
+        upgrade-insecure-requests;
+    ">
+
     <meta name="theme-color" content="#131921">
-    <link rel="icon" type="image/png" sizes="any" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
-    <link rel="apple-touch-icon" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
     <link rel="canonical" href="https://glomek.com/">
 
     <!-- Open Graph / Social -->
@@ -99,24 +127,24 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/pages.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <!-- Native mobile app shell (tab bar, bottom sheets, touch feel) — loads last so it wins -->
+    <link rel="stylesheet" href="css/mobile-app.css">
+    <!-- Modern marketplace layer (pill search, rails, section cards) -->
+    <link rel="stylesheet" href="css/modern.css">
 </head>
 
 <body>
 
-    <!-- Promo Banner Strip -->
-    <div class="promo-banner" id="promoBanner">
-        <div class="promo-text">
-            <span class="material-symbols-rounded" style="font-size:16px;">phone_android</span>
-            Download the <span class="promo-highlight">Glomek App</span>
-        </div>
-        <button class="promo-close" onclick="document.getElementById('promoBanner').style.display='none'">
-            <span class="material-symbols-rounded" style="font-size:18px;">close</span>
-        </button>
-    </div>
+    <a href="#productGrid" class="skip-link">Skip to products</a>
 
     <!-- Navbar -->
     <header class="navbar">
         <div class="nav-container">
+            <button class="mobile-menu-btn" id="menuToggleBtn" type="button" aria-label="Open categories menu"
+                aria-controls="categoryDrawer" aria-expanded="false">
+                <span class="material-symbols-rounded">menu</span>
+            </button>
+
             <div class="logo">
                 <a href="index.html" style="display:flex; align-items:center;">
                     <img src="assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo" class="brand-logo">
@@ -174,8 +202,10 @@
     <!-- MAIN CONTENT OVERLAPPING HERO -->
     <main class="main-content" style="position: relative; z-index: 10; max-width: 1450px;">
 
-        <!-- Categories Section -->
-        <section class="categories-section" style="margin-bottom: 1.5rem;">
+        <!-- Categories Section — holds subcategory pills once a category is
+             chosen. It is empty the rest of the time, so its spacing is in CSS
+             and only applies when the pills are actually visible. -->
+        <section class="categories-section">
             <div class="subcategory-list" id="subcategoryList" hidden>
                 <!-- Subcategory pills injected here on category click -->
             </div>
@@ -185,6 +215,19 @@
         <nav class="breadcrumb-nav" id="breadcrumbNav">
             <a href="#" onclick="filterByCategory(null); return false;">Home</a>
         </nav>
+
+        <!-- Listing bar — the compact strip above a set of results. Kept
+             deliberately light: the breadcrumb above already says where you
+             are and how to get back, so this only carries the label, the
+             count, and the chips to narrow down. -->
+        <section class="listing-bar" id="searchResultsHead" hidden>
+            <div class="lb-row">
+                <span class="srh-label" id="srhLabel">Shop all products</span>
+                <strong class="srh-term" id="srhTerm"></strong>
+                <span class="srh-count" id="srhCount"></span>
+            </div>
+            <div class="srh-chips" id="srhChips" hidden></div>
+        </section>
 
         <!-- Main Product Grid -->
         <section class="products-section jumia-container">
@@ -229,6 +272,13 @@
             <div class="loading-more" id="loadingMore" hidden>
                 <div class="spinner"></div>
             </div>
+
+            <!-- Numbered pagination for search results -->
+            <nav class="pagination" id="pagination" aria-label="Search results pages" hidden></nav>
+
+            <!-- Always in the layout (the loader above is hidden, so it can
+                 never trigger an observer). Watched to page in more results. -->
+            <div id="scrollSentinel" aria-hidden="true" style="height:1px;"></div>
         </section>
     </main>
 
@@ -387,80 +437,152 @@
         </div>
     </div>
 
-    <!-- Checkout Modal -->
-    <div class="modal-overlay" id="checkoutModal" hidden>
-        <div class="modal-content glass-card" style="max-width: 500px">
-            <button class="close-modal" onclick="closeModal('checkoutModal')"><span
-                    class="material-symbols-rounded">close</span></button>
-            <h2 style="margin-bottom: 1rem; font-family:var(--font-display);">Secure Checkout</h2>
-
-            <div id="checkoutSummary" style="margin-bottom: 1.5rem;">
-                <p>Total Amount: <strong class="accent-text" id="checkoutAmount">GH₵0.00</strong></p>
+    <!-- Checkout Sheet — mirrors the mobile app's "Buy Now" bottom sheet -->
+    <div class="modal-overlay sheet-modal" id="checkoutModal" hidden>
+        <div class="modal-content glass-card sheet-content" style="max-width: 520px">
+            <div class="sheet-handle" aria-hidden="true"></div>
+            <div class="sheet-head">
+                <h2 class="sheet-title">Secure Checkout</h2>
+                <button class="close-modal sheet-close" onclick="closeModal('checkoutModal')" aria-label="Close">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
             </div>
 
-            <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
-                <div style="margin-bottom: 1rem;">
-                    <select id="chkPaymentMethod" class="form-input" onchange="togglePaymentFields()"
-                        style="margin-bottom: 0;">
-                        <option value="mtn_mobile_money">MTN Mobile Money</option>
-                        <option value="paystack_card">Card Payment (Paystack)</option>
-                        <option value="cash_on_delivery">Cash on Delivery</option>
-                    </select>
-                </div>
-                <div id="momoFieldSection" style="display:flex; gap: 1rem; margin-bottom: 1rem;">
-                    <input type="text" id="chkPhone" placeholder="Mobile Money Number (e.g. 024...)" required
-                        class="form-input" style="flex:1; margin-bottom:0;">
-                </div>
-                <div id="codNotice" class="cod-notice" style="display:none;">
-                    <span class="material-symbols-rounded"
-                        style="font-size:18px; vertical-align:middle; color:var(--accent-color);">local_shipping</span>
-                    Pay when your order is delivered to your doorstep.
-                </div>
+            <div class="sheet-body">
+                <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+                    <!-- ── Payment method ─────────────────────────────── -->
+                    <div class="chk-section">
+                        <div class="chk-section-head">
+                            <span class="material-symbols-rounded">account_balance_wallet</span>
+                            <strong>Payment Method</strong>
+                        </div>
 
-                <div class="checkout-address-header"
-                    style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
-                    <span class="material-symbols-rounded"
-                        style="font-size:20px; color:var(--accent-color);">location_on</span>
-                    <strong style="font-size:0.95rem;">Delivery Address</strong>
-                </div>
-                <input type="text" id="chkAddress" placeholder="Street Address" required class="form-input">
-                <input type="text" id="chkCity" placeholder="City" required class="form-input">
-                <div style="display:flex; gap: 0.75rem;">
-                    <input type="text" id="chkState" placeholder="State / Region" required class="form-input"
-                        style="flex:1;">
-                    <input type="text" id="chkPostalCode" placeholder="Postal Code" class="form-input" style="flex:1;">
-                </div>
-                <input type="text" id="chkCountry" placeholder="Country" required class="form-input" value="Ghana">
+                        <div class="pay-methods" id="payMethods" role="radiogroup"
+                            aria-label="Choose how you want to pay">
+                            <label class="pay-method selected">
+                                <input type="radio" name="payMethod" value="paystack_momo" checked
+                                    onchange="selectPaymentMethod(this.value)">
+                                <span class="pay-method-icon material-symbols-rounded">smartphone</span>
+                                <span class="pay-method-body">
+                                    <span class="pay-method-title">Mobile Money</span>
+                                    <span class="pay-method-sub">MTN · Telecel · AirtelTigo</span>
+                                </span>
+                                <span class="pay-method-check material-symbols-rounded">check_circle</span>
+                            </label>
 
-                <div style="display:flex; gap: 1rem; margin-bottom: 1.5rem;">
-                    <input type="text" id="chkCoupon" placeholder="Coupon Code (Optional)" class="form-input"
-                        style="flex:1; margin-bottom:0;">
-                    <button type="button" class="checkout-btn" style="width: auto; padding: 0 1.5rem;"
-                        onclick="applyCoupon()">Apply</button>
-                </div>
+                            <label class="pay-method">
+                                <input type="radio" name="payMethod" value="paystack_card"
+                                    onchange="selectPaymentMethod(this.value)">
+                                <span class="pay-method-icon material-symbols-rounded">credit_card</span>
+                                <span class="pay-method-body">
+                                    <span class="pay-method-title">Debit / Credit Card</span>
+                                    <span class="pay-method-sub">Visa · Mastercard · Verve</span>
+                                </span>
+                                <span class="pay-method-check material-symbols-rounded">check_circle</span>
+                            </label>
 
-                <button type="submit" class="checkout-btn" id="payBtn">Pay securely</button>
+                            <label class="pay-method">
+                                <input type="radio" name="payMethod" value="paystack"
+                                    onchange="selectPaymentMethod(this.value)">
+                                <span class="pay-method-icon material-symbols-rounded">apps</span>
+                                <span class="pay-method-body">
+                                    <span class="pay-method-title">All Payment Options</span>
+                                    <span class="pay-method-sub">Choose on the Paystack screen</span>
+                                </span>
+                                <span class="pay-method-check material-symbols-rounded">check_circle</span>
+                            </label>
+                        </div>
 
-                <!-- Trust Badges -->
-                <div class="trust-badges">
-                    <div class="trust-badge">
-                        <span class="material-symbols-rounded">verified_user</span>
-                        <span>Secure Payment</span>
+                        <div class="pay-secured-note">
+                            <span class="material-symbols-rounded">lock</span>
+                            <span id="payMethodHint">Approve the prompt on your phone to complete payment. Secured by
+                                Paystack — we never see or store your details.</span>
+                        </div>
                     </div>
-                    <div class="trust-badge">
-                        <span class="material-symbols-rounded">local_shipping</span>
-                        <span>Fast Delivery</span>
+
+                    <!-- ── Delivery address ───────────────────────────── -->
+                    <div class="chk-section">
+                        <div class="chk-section-head">
+                            <span class="material-symbols-rounded">location_on</span>
+                            <strong>Delivery Address</strong>
+                        </div>
+                        <input type="tel" id="chkPhone" placeholder="Phone Number (e.g. 024 000 0000)" required
+                            class="form-input" inputmode="tel" autocomplete="tel">
+                        <input type="text" id="chkAddress" placeholder="Street Address" required class="form-input"
+                            autocomplete="street-address">
+                        <input type="text" id="chkCity" placeholder="City" required class="form-input"
+                            autocomplete="address-level2">
+                        <div style="display:flex; gap: 0.75rem;">
+                            <input type="text" id="chkState" placeholder="State / Region" required class="form-input"
+                                style="flex:1;" autocomplete="address-level1">
+                            <input type="text" id="chkPostalCode" placeholder="Postal Code" class="form-input"
+                                style="flex:1;" autocomplete="postal-code">
+                        </div>
+                        <input type="text" id="chkCountry" placeholder="Country" required class="form-input"
+                            value="Ghana" autocomplete="country-name">
                     </div>
-                    <div class="trust-badge">
-                        <span class="material-symbols-rounded">undo</span>
-                        <span>Easy Returns</span>
+
+                    <!-- ── Coupon ─────────────────────────────────────── -->
+                    <div class="chk-section">
+                        <div class="chk-section-head">
+                            <span class="material-symbols-rounded">sell</span>
+                            <strong>Coupon</strong>
+                        </div>
+                        <div class="chk-coupon-row">
+                            <input type="text" id="chkCoupon" placeholder="Enter coupon code" class="form-input"
+                                autocapitalize="characters">
+                            <button type="button" class="chk-coupon-btn" onclick="applyCoupon()">Apply</button>
+                        </div>
                     </div>
-                    <div class="trust-badge">
-                        <span class="material-symbols-rounded">workspace_premium</span>
-                        <span>100% Authentic</span>
+
+                    <!-- ── Order summary ──────────────────────────────── -->
+                    <div class="chk-summary" id="checkoutSummary">
+                        <div class="chk-summary-row">
+                            <span>Subtotal</span>
+                            <span id="chkSubtotal">GH₵0.00</span>
+                        </div>
+                        <div class="chk-summary-row discount" id="chkDiscountRow" hidden>
+                            <span>Coupon discount</span>
+                            <span id="chkDiscount">-GH₵0.00</span>
+                        </div>
+                        <div class="chk-summary-row">
+                            <span>Delivery</span>
+                            <span class="free">Free</span>
+                        </div>
+                        <div class="chk-summary-row total">
+                            <span>Total</span>
+                            <strong class="accent-text" id="checkoutAmount">GH₵0.00</strong>
+                        </div>
                     </div>
-                </div>
-            </form>
+
+                    <!-- Trust Badges -->
+                    <div class="trust-badges">
+                        <div class="trust-badge">
+                            <span class="material-symbols-rounded">verified_user</span>
+                            <span>Secure Payment</span>
+                        </div>
+                        <div class="trust-badge">
+                            <span class="material-symbols-rounded">local_shipping</span>
+                            <span>Fast Delivery</span>
+                        </div>
+                        <div class="trust-badge">
+                            <span class="material-symbols-rounded">undo</span>
+                            <span>Easy Returns</span>
+                        </div>
+                        <div class="trust-badge">
+                            <span class="material-symbols-rounded">workspace_premium</span>
+                            <span>100% Authentic</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="sheet-footer">
+                <button type="submit" form="checkoutForm" class="checkout-btn pay-cta" id="payBtn">
+                    <span id="payBtnLabel">Pay</span>
+                    <strong id="payBtnAmount">GH₵0.00</strong>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -470,6 +592,9 @@
             <button class="pd-cart-icon-btn" onclick="toggleCart(true)">
                 <span class="material-symbols-rounded">shopping_cart</span>
                 <span class="pd-cart-badge" id="pdCartBadge" hidden>0</span>
+            </button>
+            <button class="pd-share-btn" id="pdShareBtn" onclick="shareCurrentProduct()" title="Share this product">
+                <span class="material-symbols-rounded">ios_share</span>
             </button>
             <button class="close-modal pd-close" onclick="closeModal('productDetailModal')">
                 <span class="material-symbols-rounded">close</span>
@@ -501,7 +626,7 @@
                         <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star</span>
                         <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star</span>
                         <span class="material-symbols-rounded" style="color:#FFA41C;font-size:18px;">star_half</span>
-                        <a href="#" style="color:#007185;margin-left:8px;font-size:0.9rem;">1,241 ratings</a>
+                        <button type="button" class="pd-rating-link" onclick="scrollToReviews()">0 ratings</button>
                     </div>
                     <hr style="border-top:1px solid #ddd; margin: 15px 0;" />
 
@@ -650,8 +775,17 @@
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://js.paystack.co/v1/inline.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <!--
+        GOING LIVE: uncomment and set your Paystack LIVE public key here.
+        Without it the checkout runs against the test key and no real money moves.
+        The matching PAYSTACK_SECRET_KEY must be set on the API server.
+    -->
+    <!-- <script>window.GLOMEK_PAYSTACK_KEY = 'pk_live_xxxxxxxxxxxxxxxxxxxx';</script> -->
+
     <script src="js/api.js" defer></script>
     <script src="js/app.js" defer></script>
+    <script src="js/mobile-app.js" defer></script>
+    <script src="js/modern-home.js" defer></script>
 </body>
 
 </html>

@@ -10,10 +10,19 @@ class ApiService {
             
             const req = await fetch(url);
             const res = await req.json();
-            return res.success ? res.data : [];
+            if (!res.success) return { items: [], total: 0, page, limit };
+
+            // The API reports `total` for the whole matching set; the UI needs
+            // it to render real page numbers rather than guessing.
+            return {
+                items: res.data || [],
+                total: typeof res.total === 'number' ? res.total : (res.data || []).length,
+                page: res.page || page,
+                limit: res.limit || limit
+            };
         } catch (e) {
             console.error('Error fetching products:', e);
-            return [];
+            return { items: [], total: 0, page, limit };
         }
     }
 
@@ -114,27 +123,25 @@ class ApiService {
         } catch(e) { return []; }
     }
 
-    // --- MOMO PAYMENT --- //
-    static async initiateMomoPayment(amount, externalId, phoneNumber, token) {
-        return this._post('payment/momo', { 
-            amount: amount.toString(), 
-            currency: "EUR", 
-            externalId, 
-            phoneNumber 
+    // --- PAYSTACK PAYMENT --- //
+    // Paystack is the only gateway: it fronts both mobile money (MTN, Telecel,
+    // AirtelTigo) and card. There is no direct MoMo call and no cash on delivery.
+
+    /**
+     * Opens a transaction server-side. Used as the fallback when the inline
+     * popup script is unavailable — the customer is sent to authorization_url.
+     * @param {string[]} channels e.g. ['mobile_money'] or ['card']
+     */
+    static async initiatePaystackPayment(amount, email, reference, channels, callbackUrl, token) {
+        return this._post('payment/paystack/initiate', {
+            amount,
+            email,
+            reference,
+            ...(channels && channels.length ? { channels } : {}),
+            ...(callbackUrl ? { callback_url: callbackUrl } : {})
         }, token);
     }
 
-    static async checkMomoStatus(referenceId, token) {
-        try {
-            const req = await fetch(`${BASE_URL}/payment/momo/status/${referenceId}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-                credentials: 'include'
-            });
-            return await req.json();
-        } catch(e) { return null; }
-    }
-
-    // --- PAYSTACK PAYMENT --- //
     static async verifyPaystackPayment(reference, token) {
         return this._post('payment/paystack/verify', { reference }, token);
     }

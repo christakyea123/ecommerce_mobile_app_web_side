@@ -17,6 +17,11 @@ let state = {
     currentPage: 1,
     isLoading: false,
     hasMore: true,
+    allProducts: [],
+    initialLoadComplete: false,
+    totalResults: 0,
+    // Set when the API ignores categoryId, so the browser narrows instead.
+    serverFilterUnavailable: false,
     selectedSubCategoryId: null,
     sortBy: 'featured',
     priceMin: null,
@@ -26,8 +31,142 @@ let state = {
 };
 
 // ====== UTILS ====== //
+// Shown when a product image 404s or the network drops mid-load, so the grid
+// never collapses into broken-image icons. Inline so it always resolves.
+window.FALLBACK_IMAGE = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+        <rect width="200" height="200" fill="#f0f2f2"/>
+        <path d="M60 130h80L118 96l-18 24-12-14z" fill="#c7cdcd"/>
+        <circle cx="78" cy="76" r="10" fill="#c7cdcd"/>
+    </svg>`.replace(/\s+/g, ' ')
+);
+
+// Results per page. Keeping this modest matters for more than tidiness: with
+// infinite scroll the grid grew without bound, so after a few pages the browser
+// was laying out and painting hundreds of image cards on every frame and the
+// scroll got progressively worse. A page is a fixed, bounded amount of DOM.
+const PAGE_SIZE = 40;
+
+/**
+ * A "listing" is any narrowed set of results — a search, a category, or a
+ * sub-category. Listings are presented the way a marketplace presents them:
+ * a results header and numbered pages, rather than an endless feed. Only the
+ * unfiltered homepage keeps its infinite scroll.
+ */
+function isListingView() {
+    return !!(
+        (state.searchKeyword && state.searchKeyword.trim()) ||
+        state.selectedCategoryId ||
+        state.selectedSubCategoryId
+    );
+}
+
+/**
+ * Everything is paginated — homepage browsing included, the way a marketplace
+ * catalogue works. That keeps the DOM to one page of cards instead of letting
+ * it grow until scrolling degrades.
+ *
+ * The one exception: if the API ignored `categoryId` we are narrowing in the
+ * browser, so `total` describes the whole catalogue and page numbers built
+ * from it would be a lie. That case keeps infinite scroll until the API
+ * change is deployed.
+ */
+function isPaginatedView() {
+    if (state.serverFilterUnavailable && !state.searchKeyword) return false;
+    return true;
+}
+
+/* ── Listing state lives in the URL ──────────────────────────────────────
+   Jumia's results are a real address: /catalog/?q=food&page=2. That is what
+   makes them feel solid — refreshing keeps you on the same page of results,
+   the browser Back button steps back through them, and a link can be shared.
+   Holding all of it in memory instead loses the lot on reload. */
+
+function listingUrl() {
+    const p = new URLSearchParams();
+    if (state.searchKeyword) p.set('q', state.searchKeyword);
+    if (state.selectedCategoryId) p.set('cat', state.selectedCategoryId);
+    if (state.selectedSubCategoryId) p.set('sub', state.selectedSubCategoryId);
+    if (state.currentPage > 1) p.set('page', String(state.currentPage));
+    const qs = p.toString();
+    return window.location.pathname + (qs ? `?${qs}` : '');
+}
+
+// Set while a load is being driven *by* the history (Back/Forward), so that
+// restoring a listing never writes a fresh entry back into the history.
+let suppressUrlSync = false;
+
+function syncListingUrl() {
+    if (suppressUrlSync) return;
+    const next = listingUrl();
+    if (next === window.location.pathname + window.location.search) return;
+    try {
+        history.pushState({ glomekListing: true }, '', next);
+    } catch { /* history unavailable */ }
+}
+
+/** Restores search / category / page from the address bar. */
+function applyListingFromUrl() {
+    const p = new URLSearchParams(window.location.search);
+    state.searchKeyword = p.get('q') || '';
+    state.selectedCategoryId = p.get('cat') || null;
+    state.selectedSubCategoryId = p.get('sub') || null;
+    state.currentPage = Math.max(1, parseInt(p.get('page'), 10) || 1);
+
+    if (UI.searchInput) UI.searchInput.value = state.searchKeyword;
+    if (UI.clearSearchBtn) UI.clearSearchBtn.hidden = !state.searchKeyword;
+}
+window.applyListingFromUrl = applyListingFromUrl;
+
+/** What the results header should call the current listing. */
+function currentListingLabel() {
+    const term = (state.searchKeyword || '').trim();
+    if (term) return { label: 'Results for', title: `"${term}"` };
+
+    if (state.selectedSubCategoryId) {
+        const sub = (state.subCategories || []).find(s => s._id === state.selectedSubCategoryId);
+        if (sub) return { label: 'Browsing', title: sub.name };
+    }
+    if (state.selectedCategoryId) {
+        const cat = (state.categories || []).find(c => c._id === state.selectedCategoryId);
+        if (cat) return { label: 'Browsing', title: cat.name };
+    }
+    return null;
+}
+
+/**
+ * Turns a product title into something worth suggesting.
+ *
+ * Titles here are catalogue strings — "Samsung Galaxy A51 SM-A515 16.5 cm
+ * (6.5") 4G USB Type-C 4GB 128GB Blue". Offering that as a search suggestion
+ * fills the dropdown with unreadable text, and picking it searched the entire
+ * title, which matches that one product or nothing at all.
+ *
+ * Keep the identifying words at the front and drop the spec tail.
+ */
+function toSearchPhrase(name) {
+    if (!name) return '';
+    const head = String(name)
+        // Spec noise almost always begins at one of these.
+        .split(/[(\[|,–—:]/)[0]
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    // Take whole words while they fit. A fixed word count cuts phrases like
+    // "HP Campus XL Tie | Dye Backpack" in half; a fixed character count cuts
+    // mid-word. Growing word by word keeps the phrase readable.
+    const words = head.split(' ');
+    let phrase = '';
+    for (const w of words) {
+        const next = phrase ? `${phrase} ${w}` : w;
+        if (next.length > 32 || phrase.split(' ').length >= 6) break;
+        phrase = next;
+    }
+    return (phrase || words[0] || '').trim();
+}
+
 function escapeHtml(unsafe) {
-    if (!unsafe) return '';
+    if (unsafe === null || unsafe === undefined) return '';
     return unsafe
          .toString()
          .replace(/&/g, "&amp;")
@@ -98,7 +237,7 @@ function showToast(message, type = 'info') {
     toast.className = `toast ${type}`;
     toast.innerHTML = `
         <span class="material-symbols-rounded toast-icon">${iconMap[type] || 'info'}</span>
-        <span class="toast-msg">${message}</span>
+        <span class="toast-msg">${escapeHtml(message)}</span>
         <button class="toast-close" onclick="this.parentElement.classList.add('removing'); setTimeout(()=>this.parentElement.remove(), 350)">
             <span class="material-symbols-rounded">close</span>
         </button>
@@ -114,8 +253,25 @@ function showToast(message, type = 'info') {
 
 async function initApp() {
     setupEventListeners();
+    // Read ?q= / ?cat= / ?page= before the first fetch, so a shared or
+    // refreshed link lands on exactly the results it describes.
+    applyListingFromUrl();
     await loadInitialData();
     renderGoogleButton();
+    // Finish any order the customer left mid-payment on Paystack's hosted page.
+    resumePendingPayment();
+    openSharedProductLink();
+}
+
+/** Opens the product behind a shared ?product=<id> link. */
+function openSharedProductLink() {
+    const id = new URLSearchParams(window.location.search).get('product');
+    if (!id) return;
+
+    // Clean the URL so a refresh doesn't reopen the sheet.
+    const clean = window.location.pathname + window.location.hash;
+    history.replaceState(null, '', clean);
+    openProductDetails(id);
 }
 
 function renderGoogleButton() {
@@ -128,15 +284,31 @@ function renderGoogleButton() {
             callback: handleGoogleCredentialResponse
         });
         window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", type: "standard" });
+
+        // Google renders into an iframe. If the current origin is not on the
+        // client ID's authorised list, GSI logs and gives up, leaving an empty
+        // box and no way to sign in. Detect that and fall back.
+        setTimeout(() => {
+            if (container.childElementCount === 0 || container.offsetHeight === 0) {
+                console.warn(
+                    'GLOMEK: the Google button did not render. Add "' + window.location.origin +
+                    '" to Authorised JavaScript origins for this OAuth client ID in Google Cloud Console.'
+                );
+                renderGoogleFallbackButton(container);
+            }
+        }, 2500);
     } else {
-        // Fallback: render a styled Google button that shows a prompt
-        container.innerHTML = `
-            <button type="button" class="google-signin-btn" onclick="handleFallbackGoogleLogin()">
-                <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                <span>Sign in with Google</span>
-            </button>
-        `;
+        renderGoogleFallbackButton(container);
     }
+}
+
+function renderGoogleFallbackButton(container) {
+    container.innerHTML = `
+        <button type="button" class="google-signin-btn" onclick="handleFallbackGoogleLogin()">
+            <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            <span>Sign in with Google</span>
+        </button>
+    `;
 }
 
 async function handleGoogleCredentialResponse(response) {
@@ -236,19 +408,22 @@ function setupEventListeners() {
                 }
             });
 
-            // 3) Product name matches (from already-loaded products)
+            // 3) Product matches, offered as a short searchable phrase.
             const seenNames = new Set();
             const allProds = state.allProducts || state.products || [];
             allProds.forEach(p => {
                 if (suggestions.length >= 12) return;
                 if (p.name && p.name.toLowerCase().includes(q)) {
-                    // Use a simplified/shortened version for suggestion
-                    const shortName = p.name.length > 60 ? p.name.substring(0, 57) + '...' : p.name;
-                    const key = shortName.toLowerCase();
+                    const phrase = toSearchPhrase(p.name);
+                    if (!phrase) return;
+                    const key = phrase.toLowerCase();
                     if (!seenNames.has(key) && !suggestions.some(s => s.text.toLowerCase() === key)) {
                         seenNames.add(key);
                         const catName = p.proCategoryId ? (p.proCategoryId.name || '') : '';
-                        suggestions.push({ type: 'product', text: shortName, fullText: p.name, icon: 'search', category: catName ? `in ${catName}` : '' });
+                        // text and fullText are the same phrase on purpose:
+                        // picking a suggestion must run a *query*, not paste a
+                        // whole product title into the search box.
+                        suggestions.push({ type: 'product', text: phrase, fullText: phrase, icon: 'search', category: catName ? `in ${catName}` : '' });
                     }
                 }
             });
@@ -436,20 +611,57 @@ function setupEventListeners() {
     if (closeWishlistBtn) closeWishlistBtn.addEventListener('click', () => toggleWishlist(false));
     UI.cartOverlay.addEventListener('click', () => toggleWishlist(false));
 
-    // Infinite Scroll + Back to Top FAB
+    // ── Infinite scroll ─────────────────────────────────────────────────
+    // Driven by IntersectionObserver watching the loader at the end of the
+    // grid. The old version ran on every scroll event and read
+    // document.body.offsetHeight, which forces a synchronous layout — dozens
+    // of full reflows a second while scrolling, which is what made it stutter.
+    // The observer costs nothing until the sentinel actually comes into view.
+    const sentinel = document.getElementById('scrollSentinel');
+    if (sentinel && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver((entries) => {
+            if (!entries[0].isIntersecting) return;
+
+            // An observer always delivers one callback for a newly observed
+            // target, and it arrives while the very first page is still being
+            // fetched — with an empty grid the sentinel is on screen. That
+            // advanced currentPage to 2 and ran a *pagination* load before any
+            // full load had happened, which then made the real first load a
+            // no-op. Result: an empty grid and nothing to scroll.
+            // Never paginate until a full load has actually completed.
+            if (!state.initialLoadComplete) return;
+            // Search results use numbered pages. Auto-appending underneath a
+            // paginator would fight it and make the page numbers meaningless.
+            if (isPaginatedView()) return;
+            if (state.isLoading || !state.hasMore) return;
+            if (!state.products || state.products.length === 0) return;
+
+            state.currentPage++;
+            loadProducts(true);
+        }, { rootMargin: '600px 0px' }); // start fetching before it is reached
+        io.observe(sentinel);
+    }
+
+    // ── Back-to-top button ──────────────────────────────────────────────
+    // Passive + rAF-throttled, and the class is only touched when the state
+    // actually flips, so scrolling never triggers a needless style recalc.
     const fab = document.getElementById('backToTopFab');
-    window.addEventListener('scroll', () => {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
-            if (!state.isLoading && state.hasMore) {
-                state.currentPage++;
-                loadProducts(true);
-            }
-        }
-        // Back to top FAB visibility
-        if (fab) {
-            fab.classList.toggle('visible', window.scrollY > 600);
-        }
-    });
+    if (fab) {
+        let fabTicking = false;
+        let fabVisible = false;
+        window.addEventListener('scroll', () => {
+            if (fabTicking) return;
+            fabTicking = true;
+            requestAnimationFrame(() => {
+                const shouldShow = window.scrollY > 600;
+                if (shouldShow !== fabVisible) {
+                    fabVisible = shouldShow;
+                    fab.classList.toggle('visible', shouldShow);
+                }
+                fabTicking = false;
+            });
+        }, { passive: true });
+    }
 
     const savedCart = localStorage.getItem('glomek_cart');
     if (savedCart) {
@@ -485,9 +697,31 @@ async function loadInitialData() {
     await loadProducts();
 }
 
+/**
+ * Wrapper that guarantees the in-flight flag is always cleared.
+ *
+ * Previously `state.isLoading = true` was set here and cleared at each exit
+ * point. Any exception in between left it stuck true, and because the very
+ * first line is `if (state.isLoading) return`, every later load became a
+ * silent no-op — the grid just sat at "Showing 0 products" forever. A single
+ * `finally` makes that failure mode impossible.
+ */
 async function loadProducts(isPagination = false) {
     if (state.isLoading) return;
     state.isLoading = true;
+    try {
+        await loadProductsInner(isPagination);
+    } catch (err) {
+        console.error('Product load failed:', err);
+        showNetworkError();
+    } finally {
+        state.isLoading = false;
+        state.initialLoadComplete = true;
+        hideSearchLoading();
+    }
+}
+
+async function loadProductsInner(isPagination = false) {
     showSearchLoading();
 
     if (!isPagination) {
@@ -510,6 +744,10 @@ async function loadProducts(isPagination = false) {
             if (categoryNavWrapper) categoryNavWrapper.style.display = '';
             if (recentlyViewed) recentlyViewed.style.display = '';
         }
+        // .main-content is pulled up 120px to tuck under the hero. With the
+        // hero gone that margin drags the breadcrumb under the header, over
+        // the search box — so the layout needs to know the hero is absent.
+        document.body.classList.toggle('hero-hidden', !!state.searchKeyword);
 
         const oldRecs = document.getElementById('recsGrid');
         if (oldRecs) oldRecs.remove();
@@ -519,7 +757,17 @@ async function loadProducts(isPagination = false) {
         UI.loadingMore.hidden = false;
     }
 
-    const fetchedProducts = await ApiService.fetchProducts(state.currentPage, 50, state.searchKeyword);
+    // Category and sub-category are filtered by the server so that `total` —
+    // and therefore the page numbers — describe the actual listing.
+    const pageResult = await ApiService.fetchProducts(
+        state.currentPage,
+        PAGE_SIZE,
+        state.searchKeyword,
+        state.searchKeyword ? '' : (state.selectedCategoryId || ''),
+        state.searchKeyword ? '' : (state.selectedSubCategoryId || '')
+    );
+    const fetchedProducts = pageResult.items;
+    state.totalResults = pageResult.total;
 
     // Network error check — show retry UI if offline and no results
     if (!fetchedProducts || (fetchedProducts.length === 0 && !navigator.onLine)) {
@@ -530,21 +778,49 @@ async function loadProducts(isPagination = false) {
     }
 
     if (isPagination) {
-        state.allProducts = [...state.allProducts, ...fetchedProducts];
+        // `allProducts` starts undefined, so spreading it before any full load
+        // has run throws and (previously) wedged isLoading true for good.
+        state.allProducts = [...(state.allProducts || []), ...fetchedProducts];
     } else {
         state.allProducts = fetchedProducts;
     }
 
     let filteredList = state.allProducts;
 
-    if (state.selectedCategoryId) {
+    // ── Does this API actually honour categoryId? ───────────────────────
+    // The server-side filter is a recent addition. Until it is deployed the
+    // live API ignores the parameter and returns the whole catalogue — and if
+    // the client trusted it, picking a category would silently show everything.
+    // Detect it from the response and fall back rather than break.
+    if (state.selectedCategoryId && !state.searchKeyword && fetchedProducts.length) {
+        const catIdOf = (p) => {
+            const c = p.proCategoryId;
+            return c && typeof c === 'object' ? c._id : c;
+        };
+        // Only products that actually carry a category can answer the question.
+        // If none do, we cannot tell — and must not assume failure, or the
+        // browser filter would discard every result.
+        const answerable = fetchedProducts.filter(p => !!catIdOf(p));
+        if (answerable.length) {
+            state.serverFilterUnavailable =
+                !answerable.every(p => catIdOf(p) === state.selectedCategoryId);
+        }
+    } else if (!state.selectedCategoryId) {
+        state.serverFilterUnavailable = false;
+    }
+
+    // Narrow in the browser when the query is doing the server-side work (a
+    // refine chip during a search), or when the server did not filter for us.
+    const narrowHere = !!state.searchKeyword || state.serverFilterUnavailable;
+
+    if (state.selectedCategoryId && narrowHere) {
         const cat = state.categories.find(c => c._id === state.selectedCategoryId);
         if (cat) {
             filteredList = filteredList.filter(p => p.proCategoryId && (p.proCategoryId.name === cat.name || p.proCategoryId._id === cat._id));
         }
     }
 
-    if (state.selectedSubCategoryId) {
+    if (state.selectedSubCategoryId && narrowHere) {
         const subCat = state.subCategories.find(s => s._id === state.selectedSubCategoryId);
         if (subCat) {
             filteredList = filteredList.filter(p => p.proSubCategoryId && (p.proSubCategoryId.name === subCat.name || p.proSubCategoryId._id === subCat._id));
@@ -569,6 +845,11 @@ async function loadProducts(isPagination = false) {
     updateProductCount();
     // Update breadcrumbs
     updateBreadcrumbs();
+    // Search results get their own header, refine chips and sticky controls
+    renderSearchResultsHead();
+    renderPagination();
+    // Reflect the listing in the address bar so refresh and Back both work.
+    if (!isPagination) syncListingUrl();
 
     if (state.products.length === 0 && !isPagination) {
         await showEmptySearchState();
@@ -582,14 +863,182 @@ async function loadProducts(isPagination = false) {
     state.isLoading = false;
     hideSearchLoading();
 
-    // Auto-scroll to results when searching (industry standard)
+    // A search is a new page of results, so it starts at the top — the way
+    // every marketplace behaves. The old code smooth-scrolled the page *down*
+    // to the grid after each search, which yanked the view away from the
+    // customer and hid the results header they had just triggered.
     if (state.searchKeyword && !isPagination) {
-        const prodSec = document.querySelector('.products-section');
-        if (prodSec) setTimeout(() => prodSec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+        window.scrollTo({ top: 0, behavior: 'auto' });
     }
 
     // Update page title with context
     updatePageTitle();
+}
+
+/**
+ * Numbered pagination for search results.
+ *
+ * Builds a window of pages around the current one with ellipses, plus prev and
+ * next arrows, e.g.  ‹ 1 … 4 [5] 6 … 12 ›
+ */
+function paginationWindow(current, totalPages) {
+    if (totalPages <= 7) {
+        return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const pages = new Set([1, totalPages, current]);
+    if (current - 1 > 1) pages.add(current - 1);
+    if (current + 1 < totalPages) pages.add(current + 1);
+    // Keep the row a stable width near the ends.
+    if (current <= 3) { pages.add(2); pages.add(3); pages.add(4); }
+    if (current >= totalPages - 2) {
+        pages.add(totalPages - 1); pages.add(totalPages - 2); pages.add(totalPages - 3);
+    }
+
+    const sorted = [...pages].filter(p => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+
+    const out = [];
+    let previous = 0;
+    for (const p of sorted) {
+        if (previous && p - previous > 1) out.push('…');
+        out.push(p);
+        previous = p;
+    }
+    return out;
+}
+
+function renderPagination() {
+    const nav = document.getElementById('pagination');
+    if (!nav) return;
+
+    const totalPages = Math.max(1, Math.ceil((state.totalResults || 0) / PAGE_SIZE));
+
+    // A paginator only where the numbers are honest, and only when there is
+    // more than one page to move between.
+    if (!isPaginatedView() || totalPages <= 1) {
+        nav.hidden = true;
+        nav.innerHTML = '';
+        return;
+    }
+
+    const current = Math.min(state.currentPage, totalPages);
+    const items = paginationWindow(current, totalPages);
+
+    nav.hidden = false;
+    nav.innerHTML = `
+        <button class="pg-btn pg-arrow" type="button" data-page="${current - 1}"
+                ${current === 1 ? 'disabled' : ''} aria-label="Previous page">
+            <span class="material-symbols-rounded">chevron_left</span>
+        </button>
+        ${items.map(p => p === '…'
+        ? `<span class="pg-gap" aria-hidden="true">…</span>`
+        : `<button class="pg-btn ${p === current ? 'active' : ''}" type="button" data-page="${p}"
+                     ${p === current ? 'aria-current="page"' : ''}>${p}</button>`
+    ).join('')}
+        <button class="pg-btn pg-arrow" type="button" data-page="${current + 1}"
+                ${current === totalPages ? 'disabled' : ''} aria-label="Next page">
+            <span class="material-symbols-rounded">chevron_right</span>
+        </button>
+    `;
+
+    nav.querySelectorAll('.pg-btn[data-page]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = parseInt(btn.dataset.page, 10);
+            if (!target || target < 1 || target > totalPages || target === current) return;
+            state.currentPage = target;
+            // A page change replaces the results; it never appends.
+            loadProducts();
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        });
+    });
+}
+
+/**
+ * Turns a search into a results *view* rather than a bare grid: the term being
+ * searched, how many matches there are, a way back, and chips to narrow by the
+ * categories actually present in the results.
+ */
+function renderSearchResultsHead() {
+    const head = document.getElementById('searchResultsHead');
+    if (!head) return;
+
+    const listing = currentListingLabel();
+    document.body.classList.toggle('is-searching', !!listing);
+
+    if (!listing) {
+        head.hidden = true;
+        return;
+    }
+
+    head.hidden = false;
+
+    const labelEl = document.getElementById('srhLabel');
+    const termEl = document.getElementById('srhTerm');
+    const countEl = document.getElementById('srhCount');
+    if (labelEl) labelEl.textContent = listing.label;
+    if (termEl) termEl.textContent = listing.title;
+    if (countEl) {
+        // Only trust `total` when the server did the filtering. Otherwise it
+        // counts the whole catalogue, so report what is actually on screen.
+        const trustTotal = !state.searchKeyword && !state.serverFilterUnavailable;
+        const n = trustTotal ? (state.totalResults || state.products.length) : state.products.length;
+        countEl.textContent = n === 1 ? '1 item' : `${n} items`;
+    }
+
+    // Refine chips: the categories represented in the current results, so the
+    // customer can narrow without starting a new search.
+    const chips = document.getElementById('srhChips');
+    if (!chips) return;
+
+    const counts = new Map();
+    (state.products || []).forEach(p => {
+        const cat = p.proCategoryId;
+        if (!cat) return;
+        const id = typeof cat === 'object' ? cat._id : cat;
+        const name = typeof cat === 'object' ? cat.name : null;
+        if (!id || !name) return;
+        const entry = counts.get(id) || { id, name, n: 0 };
+        entry.n++;
+        counts.set(id, entry);
+    });
+
+    const list = [...counts.values()].sort((a, b) => b.n - a.n);
+    if (list.length < 2) {
+        chips.hidden = true;
+        chips.innerHTML = '';
+        return;
+    }
+
+    chips.hidden = false;
+    chips.innerHTML = list.map(c => `
+        <button class="srh-chip ${state.selectedCategoryId === c.id ? 'active' : ''}"
+                type="button" data-cat="${escapeHtml(c.id)}">
+            ${escapeHtml(c.name)} <em>${c.n}</em>
+        </button>
+    `).join('');
+
+    chips.querySelectorAll('.srh-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.cat;
+            // Toggle the refinement off if it is already the active one.
+            state.selectedCategoryId = (state.selectedCategoryId === id) ? null : id;
+            state.currentPage = 1;
+            loadProducts();
+        });
+    });
+}
+
+/**
+ * Leaves the current listing entirely, whether it came from the search box or
+ * from picking a category. The breadcrumb's "Home" is the visible way back —
+ * this is what it calls.
+ */
+window.exitListing = function exitListing() {
+    if (state.searchKeyword) {
+        const clear = document.getElementById('clearSearchBtn');
+        if (clear) { clear.click(); window.scrollTo({ top: 0, behavior: 'auto' }); return; }
+    }
+    filterByCategory(null);
 }
 
 async function showEmptySearchState() {
@@ -623,7 +1072,7 @@ window.filterByCategory = async function (catId) {
         const matchingSubs = state.subCategories.filter(s => s.categoryId && s.categoryId._id === catId);
         UI.subcategoryList.innerHTML = matchingSubs.length > 0 ?
             `<div class="subcategory-pill active" onclick="filterBySubCategory(null, event)">All</div>` +
-            matchingSubs.map(s => `<div class="subcategory-pill" onclick="filterBySubCategory('${s._id}', event)">${s.name}</div>`).join('') :
+            matchingSubs.map(s => `<div class="subcategory-pill" onclick="filterBySubCategory('${s._id}', event)">${escapeHtml(s.name)}</div>`).join('') :
             '<span style="color:var(--text-secondary);font-size:0.9rem;padding:0.5rem 1rem;">No subcategories found</span>';
     } else {
         UI.subcategoryList.hidden = true;
@@ -633,8 +1082,11 @@ window.filterByCategory = async function (catId) {
     state.currentPage = 1;
     await loadProducts();
 
-    const prodSec = document.querySelector('.products-section');
-    if (prodSec) setTimeout(() => prodSec.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+    // Picking a category is a fresh listing — start it at the top, like a
+    // category page. This also removes a genuine conflict: the drawer already
+    // scrolls to top on selection, and the old scrollIntoView here fired a
+    // second, opposing smooth-scroll a beat later.
+    window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 window.filterBySubCategory = async function (subCatId, event) {
@@ -645,13 +1097,13 @@ window.filterBySubCategory = async function (subCatId, event) {
     state.currentPage = 1;
     await loadProducts();
 
-    const prodSec = document.querySelector('.products-section');
-    if (prodSec) setTimeout(() => prodSec.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+    window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function renderCategories() {
     UI.categoryList.innerHTML = `<div class="category-pill ${!state.selectedCategoryId ? 'active' : ''}" onclick="filterByCategory(null)">All Products</div>` +
-        state.categories.map(c => `<div class="category-pill ${state.selectedCategoryId === c._id ? 'active' : ''}" onclick="filterByCategory('${c._id}')">${c.name}</div>`).join('');
+        state.categories.map(c => `<div class="category-pill ${state.selectedCategoryId === c._id ? 'active' : ''}" onclick="filterByCategory('${c._id}')">${escapeHtml(c.name)}</div>`).join('');
+    document.dispatchEvent(new CustomEvent('glomek:datachange'));
 }
 
 let currentPosterIndex = 0;
@@ -668,11 +1120,11 @@ function renderPosters() {
             const hasTarget = p.targetType && p.targetType !== 'none' && p.targetValue;
             htmlSnippet += `
                 <div class="poster-slide" id="posterSlide-${idx}" style="opacity:${idx === 0 ? '1' : '0'}; z-index:${idx === 0 ? '2' : '1'};" onclick="handlePosterClick(${idx})">
-                    <img src="${imgUrl}" class="poster-image" alt="${p.posterName || 'Promotion'}" />
+                    <img src="${escapeHtml(imgUrl)}" class="poster-image" alt="${escapeHtml(p.posterName || 'Promotion')}" loading="eager" decoding="async" />
                     <div class="poster-overlay-gradient"></div>
                     <div class="poster-overlay-content">
-                        ${p.posterName ? `<h2 class="poster-title">${p.posterName}</h2>` : ''}
-                        ${p.discountText ? `<span class="poster-discount-tag">${p.discountText}</span>` : ''}
+                        ${p.posterName ? `<h2 class="poster-title">${escapeHtml(p.posterName)}</h2>` : ''}
+                        ${p.discountText ? `<span class="poster-discount-tag">${escapeHtml(p.discountText)}</span>` : ''}
                         ${hasTarget ? `<button class="poster-shop-btn" onclick="handlePosterClick(${idx}); event.stopPropagation();">Shop Now</button>` : ''}
                     </div>
                 </div>
@@ -801,12 +1253,14 @@ window.handlePosterClick = function (idx) {
         loadProducts();
     }
 
-    const prodSec = document.querySelector('.products-section');
-    if (prodSec) setTimeout(() => prodSec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    // Same rule as search and category: a new listing starts at the top.
+    window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 function renderProducts() {
     UI.productGrid.innerHTML = state.products.map(p => createProductCardHTML(p)).join('');
+    // Lets the home rails (modern-home.js) rebuild from the freshest data.
+    document.dispatchEvent(new CustomEvent('glomek:datachange'));
 }
 
 function formatPrice(amount) {
@@ -826,7 +1280,13 @@ function createProductCardHTML(product) {
     if (product.offerPrice && product.price && product.offerPrice < product.price) {
         const pct = Math.round(((product.price - product.offerPrice) / product.price) * 100);
         discountHTML = `<span class="jumia-discount-tag">-${pct}%</span>`;
-        oldPriceHTML = `<div class="jumia-old-price">${formatPrice(product.price)}</div>`;
+        oldPriceHTML = `<span class="jumia-old-price">${formatPrice(product.price)}</span>`;
+    }
+
+    // Low-stock urgency, the way the big marketplaces surface it.
+    let stockHTML = '';
+    if (typeof product.quantity === 'number' && product.quantity > 0 && product.quantity <= 5) {
+        stockHTML = `<div class="card-stock-left">Only ${product.quantity} left</div>`;
     }
 
     return `
@@ -835,16 +1295,69 @@ function createProductCardHTML(product) {
                 <button class="wishlist-heart-btn ${isWishlisted ? 'active' : ''}" onclick="toggleWishlistItem(event, '${productId}', '${encodeURIComponent(product.name)}', ${price}, '${encodeURIComponent(defaultImage)}')" title="${isWishlisted ? 'Remove from Saved' : 'Save for Later'}">
                     <span class="material-symbols-rounded">${isWishlisted ? 'favorite' : 'favorite_border'}</span>
                 </button>
-                <img src="${defaultImage}" alt="${product.name}" class="product-image" loading="lazy">
+                <img src="${escapeHtml(defaultImage)}" alt="${escapeHtml(product.name)}" class="product-image" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_IMAGE;">
                 ${discountHTML}
             </div>
             <div class="product-info jumia-info">
-                <h3 class="product-title jumia-title" title="${product.name}">${product.name}</h3>
-                <div class="product-price jumia-price">${formatPrice(price)}</div>
-                ${oldPriceHTML}
+                <h3 class="product-title jumia-title" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
+                ${renderCardRating(product)}
+                <div class="product-price-row">
+                    <div class="price-stack">
+                        <div class="product-price jumia-price">${formatPrice(price)}</div>
+                        <div class="jumia-price-was">${oldPriceHTML}</div>
+                    </div>
+                </div>
+                ${stockHTML}
+                <button class="card-add-btn" type="button"
+                    onclick="quickAddToCart(event, '${productId}', '${prodJson}')">
+                    Add to cart
+                </button>
             </div>
         </div>
     `;
+}
+
+/**
+ * Compact star rating for a product card: one filled star, the score, then the
+ * review count in brackets — the pattern shoppers already read on every major
+ * marketplace. Renders nothing when a product has no reviews yet, rather than
+ * showing a misleading zero.
+ */
+function renderCardRating(product) {
+    const avg = Number(product.averageRating) || 0;
+    const count = Number(product.numberOfReviews) || 0;
+    if (count === 0 || avg <= 0) return '';
+
+    return `
+        <div class="card-rating" aria-label="Rated ${avg.toFixed(1)} out of 5 from ${count} review${count === 1 ? '' : 's'}">
+            <span class="material-symbols-rounded card-rating-star">star</span>
+            <span class="card-rating-score">${avg.toFixed(1)}</span>
+            <span class="card-rating-count">(${count})</span>
+        </div>
+    `;
+}
+
+/** Add straight from the grid without opening the product — the pattern
+ *  shoppers expect from Jumia/Temu on a phone. */
+window.quickAddToCart = function (event, productId, encodedProduct) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    // The card button is now a full-width label, not an icon disc. This used
+    // to swap a `.material-symbols-rounded` child that no longer exists and
+    // toggle a class whose styles were tied to the old selector — so tapping
+    // Add to cart gave no feedback on the button at all.
+    const btn = event.currentTarget;
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent.trim();
+    btn.classList.add('added');
+    btn.textContent = 'Added ✓';
+    setTimeout(() => {
+        btn.classList.remove('added');
+        btn.textContent = btn.dataset.label;
+    }, 900);
+
+    if (window.haptic) window.haptic(12);
+    addToCart(productId, encodedProduct);
 }
 
 
@@ -940,17 +1453,17 @@ function updateCartUI() {
             total += (item.price * item.quantity);
             return `
                 <div class="cart-item">
-                    <img src="${item.image}" class="cart-item-img" alt="${item.name}">
+                    <img src="${escapeHtml(item.image)}" class="cart-item-img" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_IMAGE;">
                     <div class="cart-item-details">
-                        <div class="cart-item-title">${item.name}</div>
+                        <div class="cart-item-title">${escapeHtml(item.name)}</div>
                         <div class="cart-item-price">${formatPrice(item.price)}</div>
                         <div class="cart-item-actions">
                             <div class="qty-controls">
-                                <button class="qty-btn" onclick="updateQty('${item.productId}', -1)"><span class="material-symbols-rounded" style="font-size:16px;">remove</span></button>
-                                <input type="number" class="qty-input" value="${item.quantity}" min="1" onchange="setQty('${item.productId}', this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
-                                <button class="qty-btn" onclick="updateQty('${item.productId}', 1)"><span class="material-symbols-rounded" style="font-size:16px;">add</span></button>
+                                <button class="qty-btn" onclick="updateQty('${item.productId}', -1)" aria-label="Decrease quantity of ${escapeHtml(item.name)}"><span class="material-symbols-rounded" style="font-size:16px;">remove</span></button>
+                                <input type="number" class="qty-input" value="${item.quantity}" min="1" aria-label="Quantity of ${escapeHtml(item.name)}" onchange="setQty('${item.productId}', this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
+                                <button class="qty-btn" onclick="updateQty('${item.productId}', 1)" aria-label="Increase quantity of ${escapeHtml(item.name)}"><span class="material-symbols-rounded" style="font-size:16px;">add</span></button>
                             </div>
-                            <button class="delete-btn" onclick="deleteFromCart('${item.productId}')" title="Remove"><span class="material-symbols-rounded">delete</span></button>
+                            <button class="delete-btn" onclick="deleteFromCart('${item.productId}')" title="Remove" aria-label="Remove ${escapeHtml(item.name)} from cart"><span class="material-symbols-rounded">delete</span></button>
                         </div>
                     </div>
                 </div>
@@ -964,18 +1477,20 @@ function updateCartUI() {
     showMobileCartFab();
     // Update page title with cart count
     updatePageTitle();
+    // Let the mobile tab bar refresh its badges
+    document.dispatchEvent(new CustomEvent('glomek:statechange'));
 }
 
 function toggleCart(show) {
     if (show) {
         UI.cartSidebar.classList.add('open');
         UI.cartOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
     } else {
         UI.cartSidebar.classList.remove('open');
         UI.cartOverlay.classList.remove('active');
-        document.body.style.overflow = '';
     }
+    if (window.syncBodyScrollLock) window.syncBodyScrollLock();
+    document.dispatchEvent(new CustomEvent('glomek:statechange'));
 }
 
 
@@ -1140,7 +1655,7 @@ async function loadOrderHistory() {
         const statusClass = o.orderStatus || 'pending';
         const itemsHtml = (o.items || []).map(item => `
             <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary); padding: 2px 0;">
-                <span>${item.productName || 'Item'} x${item.quantity}</span>
+                <span>${escapeHtml(item.productName || 'Item')} x${item.quantity}</span>
                 <span>${formatPrice(item.price)}</span>
             </div>
         `).join('');
@@ -1220,7 +1735,43 @@ window.handleResetPasswordRequest = async function (e) {
 
 
 // ====== CHECKOUT & COUPONS ====== //
+// Paystack is the only gateway. It fronts mobile money (MTN, Telecel,
+// AirtelTigo) and cards, so there is no direct MoMo integration and no cash on
+// delivery — every order is paid for and verified before it is created.
 let appliedCouponConfig = null;
+
+// Override at deploy time with `window.GLOMEK_PAYSTACK_KEY = 'pk_live_...'`.
+const PAYSTACK_PUBLIC_KEY = window.GLOMEK_PAYSTACK_KEY || 'pk_test_c054cd818e2d4a49a16c6f9d16f2514dcc60740e';
+
+// A test key on a live domain takes payments that never settle — the customer
+// sees success and the money never arrives. Fail loudly rather than silently.
+(function warnOnTestKeyInProduction() {
+    const host = window.location.hostname;
+    const isLocal = ['localhost', '127.0.0.1', '::1', ''].includes(host) || host.endsWith('.local');
+    if (!isLocal && PAYSTACK_PUBLIC_KEY.startsWith('pk_test_')) {
+        console.error(
+            '%c⚠ GLOMEK: Paystack is running on a TEST key at ' + host + '.\n' +
+            'No real money will be collected. Set window.GLOMEK_PAYSTACK_KEY to your pk_live_ key in index.html.',
+            'color:#fff;background:#c00;font-size:14px;padding:6px 10px;border-radius:4px;'
+        );
+    }
+})();
+
+// Which Paystack channels each choice unlocks. `paystack` passes none, which
+// lets the customer pick anything Paystack offers on the checkout screen.
+const PAYSTACK_CHANNELS = {
+    paystack_momo: ['mobile_money'],
+    paystack_card: ['card'],
+    paystack: null
+};
+
+const PAYMENT_HINTS = {
+    paystack_momo: 'Approve the prompt on your phone to complete payment. Secured by Paystack — we never see or store your details.',
+    paystack_card: 'Enter your card details on Paystack’s secure screen. Secured by Paystack — we never see or store your card.',
+    paystack: 'Pick mobile money, card or bank on the Paystack screen. Secured by Paystack — we never see or store your details.'
+};
+
+const PENDING_ORDER_KEY = 'glomek_pending_order';
 
 if (UI.checkoutBtn) {
     UI.checkoutBtn.addEventListener('click', () => {
@@ -1230,199 +1781,287 @@ if (UI.checkoutBtn) {
             openModal('authModal');
             return;
         }
+        if (state.cart.length === 0) {
+            showToast("Your cart is empty.", "warning");
+            return;
+        }
 
-        const total = state.cart.reduce((a, b) => a + (b.price * b.quantity), 0);
-        document.getElementById('checkoutAmount').textContent = formatPrice(total);
+        appliedCouponConfig = null;
+        const couponInput = document.getElementById('chkCoupon');
+        if (couponInput) couponInput.value = '';
+
+        restoreSavedAddress();
+        updateCheckoutSummary();
         toggleCart(false);
         openModal('checkoutModal');
     });
 }
 
+// ── Address memory (the app remembers it too, via GetStorage) ────────────
+const ADDRESS_FIELDS = ['chkPhone', 'chkAddress', 'chkCity', 'chkState', 'chkPostalCode', 'chkCountry'];
+
+function restoreSavedAddress() {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('glomek_address') || '{}'); } catch { saved = {}; }
+    ADDRESS_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && saved[id]) el.value = saved[id];
+    });
+    const country = document.getElementById('chkCountry');
+    if (country && !country.value) country.value = 'Ghana';
+}
+
+function saveAddress() {
+    const saved = {};
+    ADDRESS_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) saved[id] = el.value;
+    });
+    localStorage.setItem('glomek_address', JSON.stringify(saved));
+}
+
+// ── Totals ──────────────────────────────────────────────────────────────
+function getCheckoutTotals() {
+    const subtotal = state.cart.reduce((a, b) => a + (b.price * b.quantity), 0);
+    const rawDiscount = appliedCouponConfig ? (appliedCouponConfig.discountAmount || 0) : 0;
+    const discount = Math.min(rawDiscount, subtotal);
+    return { subtotal, discount, total: Math.max(0, subtotal - discount) };
+}
+
+function updateCheckoutSummary() {
+    const { subtotal, discount, total } = getCheckoutTotals();
+
+    const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    set('chkSubtotal', formatPrice(subtotal));
+    set('chkDiscount', `-${formatPrice(discount)}`);
+    set('checkoutAmount', formatPrice(total));
+    set('payBtnAmount', formatPrice(total));
+
+    const discountRow = document.getElementById('chkDiscountRow');
+    if (discountRow) discountRow.hidden = discount <= 0;
+
+    return { subtotal, discount, total };
+}
+
 window.applyCoupon = async function () {
-    const code = document.getElementById('chkCoupon').value.trim();
+    const input = document.getElementById('chkCoupon');
+    const code = input.value.trim();
     if (!code) return showToast("Enter a coupon code first.", "warning");
 
-    const total = state.cart.reduce((a, b) => a + (b.price * b.quantity), 0);
+    const subtotal = state.cart.reduce((a, b) => a + (b.price * b.quantity), 0);
     const pIds = state.cart.map(i => i.productId);
 
-    const res = await ApiService.checkCoupon(code, total, pIds);
+    const res = await ApiService.checkCoupon(code, subtotal, pIds);
     if (res.success) {
         appliedCouponConfig = res.data;
         showToast("Coupon applied successfully!", "success");
-        const newTotal = total - appliedCouponConfig.discountAmount;
-        document.getElementById('checkoutAmount').textContent = formatPrice(newTotal < 0 ? 0 : newTotal);
     } else {
+        appliedCouponConfig = null;
         showToast(res.message || "Invalid or inapplicable coupon.", "error");
     }
+    updateCheckoutSummary();
 }
 
-window.togglePaymentFields = function () {
-    const pm = document.getElementById('chkPaymentMethod').value;
-    const momoSection = document.getElementById('momoFieldSection');
-    const chkPhone = document.getElementById('chkPhone');
-    const codNotice = document.getElementById('codNotice');
-
-    if (pm === 'mtn_mobile_money') {
-        momoSection.style.display = 'flex';
-        chkPhone.required = true;
-        if (codNotice) codNotice.style.display = 'none';
-    } else if (pm === 'cash_on_delivery') {
-        momoSection.style.display = 'none';
-        chkPhone.required = false;
-        chkPhone.value = '';
-        if (codNotice) codNotice.style.display = 'block';
-    } else {
-        momoSection.style.display = 'none';
-        chkPhone.required = false;
-        chkPhone.value = '';
-        if (codNotice) codNotice.style.display = 'none';
-    }
+// ── Payment method picker ───────────────────────────────────────────────
+function getSelectedPaymentMethod() {
+    const checked = document.querySelector('input[name="payMethod"]:checked');
+    return checked ? checked.value : 'paystack_momo';
 }
 
+window.selectPaymentMethod = function (value) {
+    document.querySelectorAll('#payMethods .pay-method').forEach(tile => {
+        const input = tile.querySelector('input[name="payMethod"]');
+        tile.classList.toggle('selected', !!input && input.value === value);
+    });
+    const hint = document.getElementById('payMethodHint');
+    if (hint) hint.textContent = PAYMENT_HINTS[value] || PAYMENT_HINTS.paystack;
+    if (window.haptic) window.haptic();
+}
+
+// ── Pay button state ────────────────────────────────────────────────────
+function setPayBtnBusy(busy, label) {
+    const btn = document.getElementById('payBtn');
+    if (!btn) return;
+    const labelEl = document.getElementById('payBtnLabel');
+    const amountEl = document.getElementById('payBtnAmount');
+    btn.disabled = busy;
+    btn.classList.toggle('is-busy', busy);
+    if (labelEl) labelEl.textContent = busy ? (label || 'Processing…') : 'Pay';
+    if (amountEl) amountEl.hidden = busy;
+}
+
+// ── Checkout ────────────────────────────────────────────────────────────
 window.handleCheckoutSubmit = async function (e) {
     e.preventDefault();
-    const paymentMethod = document.getElementById('chkPaymentMethod').value;
-    const phone = document.getElementById('chkPhone').value;
-    const street = document.getElementById('chkAddress').value;
-    const city = document.getElementById('chkCity').value;
-    const addrState = document.getElementById('chkState').value;
-    const postalCode = document.getElementById('chkPostalCode').value;
-    const country = document.getElementById('chkCountry').value;
 
-    const btn = document.getElementById('payBtn');
-    btn.textContent = "Processing Payment...";
-    btn.disabled = true;
+    if (!currentUser) {
+        showToast("Please login before checking out.", "warning");
+        closeModal('checkoutModal');
+        openModal('authModal');
+        return;
+    }
+    if (state.cart.length === 0) {
+        showToast("Your cart is empty.", "warning");
+        return;
+    }
 
-    const subtotal = state.cart.reduce((a, b) => a + (b.price * b.quantity), 0);
-    const discountAmount = appliedCouponConfig ? appliedCouponConfig.discountAmount : 0;
-    const finalAmount = Math.max(0, subtotal - discountAmount);
+    const paymentMethod = getSelectedPaymentMethod();
+    const { subtotal, discount, total } = updateCheckoutSummary();
 
-    const orderItems = state.cart.map(i => ({
-        productID: i.productId,
-        productName: i.name,
-        quantity: i.quantity,
-        price: i.price
-    }));
+    if (total <= 0) {
+        showToast("Order total must be greater than zero.", "error");
+        return;
+    }
 
-    const shippingAddress = { phone: phone || 'N/A', street, city, state: addrState, postalCode, country: country || 'Ghana' };
+    saveAddress();
+
+    const orderData = {
+        userID: currentUser._id,
+        orderStatus: "pending",
+        items: state.cart.map(i => ({
+            productID: i.productId,
+            productName: i.name,
+            quantity: i.quantity,
+            price: i.price
+        })),
+        totalPrice: total,
+        shippingAddress: {
+            phone: document.getElementById('chkPhone').value.trim(),
+            street: document.getElementById('chkAddress').value.trim(),
+            city: document.getElementById('chkCity').value.trim(),
+            state: document.getElementById('chkState').value.trim(),
+            postalCode: document.getElementById('chkPostalCode').value.trim(),
+            country: document.getElementById('chkCountry').value.trim() || 'Ghana'
+        },
+        paymentMethod,
+        couponCode: appliedCouponConfig ? appliedCouponConfig._id : null,
+        orderTotal: { subtotal, discount, total }
+    };
+
+    const reference = 'GLOMEK_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    const email = (currentUser.email || '').trim() || 'customer@glomek.com';
+    const channels = PAYSTACK_CHANNELS[paymentMethod];
+
+    setPayBtnBusy(true, 'Opening secure checkout…');
 
     try {
-        if (paymentMethod === 'mtn_mobile_money') {
-            // Step 1: Initiate MoMo payment
-            const momoRes = await ApiService.initiateMomoPayment(finalAmount, 'ORDER_' + Date.now(), phone, userToken);
-
-            if (momoRes && momoRes.success) {
-                showToast("Payment initiated! Please authorize on your phone.", "info");
-
-                // Step 2: Create order with payment reference
-                const orderData = {
-                    userID: currentUser._id,
-                    orderStatus: "pending",
-                    items: orderItems,
-                    totalPrice: finalAmount,
-                    shippingAddress,
-                    paymentMethod,
-                    couponCode: appliedCouponConfig ? appliedCouponConfig._id : null,
-                    orderTotal: { subtotal, discount: discountAmount, total: finalAmount },
-                    paymentId: momoRes.referenceId
-                };
-
-                const orderRes = await ApiService.createOrder(orderData, userToken);
-                if (orderRes && orderRes.success) {
-                    showToast("Order placed successfully!", "success");
-                    showReceipt(orderData, orderRes);
-                    state.cart = [];
-                    appliedCouponConfig = null;
-                    updateCartUI();
-                    closeModal('checkoutModal');
-                } else {
-                    showToast("Order creation failed: " + (orderRes ? orderRes.message : 'Unknown error'), "error");
-                }
-            } else {
-                showToast("Payment initiation failed. Check your number or balance.", "error");
-            }
-        } else if (paymentMethod === 'paystack_card') {
-            let handler = PaystackPop.setup({
-                key: 'pk_test_c054cd818e2d4a49a16c6f9d16f2514dcc60740e',
-                email: currentUser.email || 'customer@glomek.com',
-                amount: finalAmount * 100,
-                currency: 'GHS',
-                ref: 'GLOMEK_' + Date.now() + '_' + Math.random().toString(36).substring(7),
-                callback: async function (response) {
-                    btn.textContent = "Verifying Payment...";
-
-                    const verifyRes = await ApiService.verifyPaystackPayment(response.reference, userToken);
-                    if (verifyRes && verifyRes.success) {
-                        // Create order with verified payment reference
-                        const orderData = {
-                            userID: currentUser._id,
-                            orderStatus: "pending",
-                            items: orderItems,
-                            totalPrice: finalAmount,
-                            shippingAddress,
-                            paymentMethod,
-                            couponCode: appliedCouponConfig ? appliedCouponConfig._id : null,
-                            orderTotal: { subtotal, discount: discountAmount, total: finalAmount },
-                            paymentId: response.reference
-                        };
-
-                        const orderRes = await ApiService.createOrder(orderData, userToken);
-                        if (orderRes && orderRes.success) {
-                            showToast("Payment successful! Order completed.", "success");
-                            showReceipt(orderData, orderRes);
-                            state.cart = [];
-                            appliedCouponConfig = null;
-                            updateCartUI();
-                            closeModal('checkoutModal');
-                        } else {
-                            showToast("Payment verified but order creation failed. Contact support.", "error");
-                        }
-                    } else {
-                        showToast("Payment verification failed. Please contact support.", "error");
-                    }
-                    btn.textContent = "Pay securely";
-                    btn.disabled = false;
-                },
-                onClose: function () {
-                    showToast('Transaction was not completed.', "warning");
-                    btn.textContent = "Pay securely";
-                    btn.disabled = false;
-                }
-            });
-            handler.openIframe();
-            return;
-        } else if (paymentMethod === 'cash_on_delivery') {
-            // Cash on delivery — no payment gateway needed
-            const orderData = {
-                userID: currentUser._id,
-                orderStatus: "pending",
-                items: orderItems,
-                totalPrice: finalAmount,
-                shippingAddress,
-                paymentMethod,
-                couponCode: appliedCouponConfig ? appliedCouponConfig._id : null,
-                orderTotal: { subtotal, discount: discountAmount, total: finalAmount }
-            };
-
-            const orderRes = await ApiService.createOrder(orderData, userToken);
-            if (orderRes && orderRes.success) {
-                showToast("Order placed! Pay on delivery.", "success");
-                showReceipt(orderData, orderRes);
-                state.cart = [];
-                appliedCouponConfig = null;
-                updateCartUI();
-                closeModal('checkoutModal');
-            } else {
-                showToast("Order failed: " + (orderRes ? orderRes.message : 'Unknown error'), "error");
-            }
+        if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
+            await payWithPaystackInline({ orderData, reference, email, channels, total });
+        } else {
+            // The inline script did not load (blocked or offline) — fall back to
+            // Paystack's hosted page and finish the order when the customer returns.
+            await payWithPaystackRedirect({ orderData, reference, email, channels, total });
         }
     } catch (err) {
         console.error("Checkout Error:", err);
         showToast("Checkout failed. Please try again.", "error");
+        setPayBtnBusy(false);
+    }
+}
+
+/** In-page Paystack popup — the default, and the one that feels native. */
+function payWithPaystackInline({ orderData, reference, email, channels, total }) {
+    return new Promise((resolve) => {
+        const handler = window.PaystackPop.setup({
+            key: PAYSTACK_PUBLIC_KEY,
+            email,
+            amount: Math.round(total * 100), // pesewas
+            currency: 'GHS',
+            ref: reference,
+            ...(channels ? { channels } : {}),
+            metadata: {
+                custom_fields: [
+                    { display_name: 'Phone', variable_name: 'phone', value: orderData.shippingAddress.phone || 'N/A' },
+                    { display_name: 'Customer', variable_name: 'customer', value: currentUser.name || 'Customer' }
+                ]
+            },
+            callback: function (response) {
+                // Paystack calls this synchronously — hand off to an async worker.
+                finalisePaidOrder(orderData, response.reference)
+                    .catch(err => {
+                        console.error('Order finalisation error:', err);
+                        showToast("Payment went through but we hit a snag saving the order. Contact support with reference " + response.reference + ".", "error");
+                        setPayBtnBusy(false);
+                    })
+                    .finally(resolve);
+            },
+            onClose: function () {
+                showToast('Payment cancelled — your cart is safe.', "warning");
+                setPayBtnBusy(false);
+                resolve();
+            }
+        });
+        handler.openIframe();
+    });
+}
+
+/** Hosted-page fallback: park the order, redirect, resume on return. */
+async function payWithPaystackRedirect({ orderData, reference, email, channels, total }) {
+    const returnUrl = window.location.origin + window.location.pathname;
+    const initRes = await ApiService.initiatePaystackPayment(total, email, reference, channels, returnUrl, userToken);
+
+    if (!initRes || !initRes.success || !initRes.authorization_url) {
+        showToast(initRes && initRes.message ? initRes.message : "Could not start payment. Please try again.", "error");
+        setPayBtnBusy(false);
+        return;
     }
 
-    btn.textContent = "Pay securely";
-    btn.disabled = false;
+    sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify({
+        orderData,
+        reference: initRes.reference || reference,
+        returnUrl
+    }));
+    window.location.href = initRes.authorization_url;
+}
+
+/**
+ * Verifies the reference, then creates the order. The server re-verifies with
+ * Paystack and rejects a reused reference, so calling this twice cannot create
+ * two orders.
+ */
+async function finalisePaidOrder(orderData, reference) {
+    setPayBtnBusy(true, 'Verifying payment…');
+
+    const verifyRes = await ApiService.verifyPaystackPayment(reference, userToken);
+    if (!verifyRes || !verifyRes.success) {
+        showToast("We couldn't confirm that payment. If you were debited, contact support with reference " + reference + ".", "error");
+        setPayBtnBusy(false);
+        return;
+    }
+
+    setPayBtnBusy(true, 'Placing your order…');
+    const payload = { ...orderData, paymentId: reference };
+    const orderRes = await ApiService.createOrder(payload, userToken);
+
+    if (orderRes && orderRes.success) {
+        showToast("Payment successful! Your order is on its way.", "success");
+        if (window.haptic) window.haptic([12, 40, 12]);
+        showReceipt(payload, orderRes);
+        state.cart = [];
+        appliedCouponConfig = null;
+        updateCartUI();
+        closeModal('checkoutModal');
+    } else {
+        showToast("Payment received but the order failed to save. Contact support with reference " + reference + ".", "error");
+    }
+    setPayBtnBusy(false);
+}
+
+/**
+ * Runs on load: if the customer came back from Paystack's hosted page, pick the
+ * order back up where it left off.
+ */
+async function resumePendingPayment() {
+    const raw = sessionStorage.getItem(PENDING_ORDER_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(PENDING_ORDER_KEY); // one attempt only
+
+    let pending;
+    try { pending = JSON.parse(raw); } catch { return; }
+    if (!pending || !pending.reference || !pending.orderData) return;
+
+    showToast('Confirming your payment…', 'info');
+    await finalisePaidOrder(pending.orderData, pending.reference);
 }
 
 // ====== PRODUCT DETAIL MODAL (CAROUSEL + REVIEWS) ====== //
@@ -1497,8 +2136,53 @@ function updatePdRatingStars(product) {
             starsHtml += '<span class="material-symbols-rounded" style="color:#ddd;font-size:18px;">star</span>';
         }
     }
-    starsHtml += `<a href="#" style="color:#007185;margin-left:8px;font-size:0.9rem;">${numReviews} rating${numReviews !== 1 ? 's' : ''}</a>`;
+    // A real control, not a dead `<a href="#">`. It used to be an anchor with
+    // no handler at all, so clicking the rating count did nothing.
+    starsHtml += `<button type="button" class="pd-rating-link" id="pdRatingLink">${numReviews} rating${numReviews !== 1 ? 's' : ''}</button>`;
     ratingContainer.innerHTML = starsHtml;
+
+    const link = ratingContainer.querySelector('#pdRatingLink');
+    if (link) link.addEventListener('click', scrollToReviews);
+}
+
+/** Jumps to the reviews block inside the open product sheet. */
+window.scrollToReviews = function scrollToReviews() {
+    const section = document.querySelector('.pd-reviews-section');
+    if (!section) return;
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    section.classList.remove('pd-reviews-flash');
+    void section.offsetWidth;
+    section.classList.add('pd-reviews-flash');
+}
+
+/** Hands the product to the device share sheet, falling back to the clipboard. */
+window.shareCurrentProduct = async function () {
+    const product = currentPdProduct;
+    if (!product) return;
+
+    const id = product._id || product.sId;
+    const url = `${window.location.origin}${window.location.pathname}?product=${encodeURIComponent(id)}`;
+    const shareData = {
+        title: product.name,
+        text: `${product.name} — ${formatPrice(product.offerPrice || product.price || 0)} on Glomek`,
+        url
+    };
+
+    if (window.haptic) window.haptic();
+
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+            return;
+        }
+        await navigator.clipboard.writeText(url);
+        showToast('Product link copied to clipboard.', 'success');
+    } catch (err) {
+        // AbortError just means the customer dismissed the share sheet.
+        if (err && err.name !== 'AbortError') {
+            showToast('Could not share this product.', 'warning');
+        }
+    }
 }
 
 function populateProductDetail(product) {
@@ -1570,7 +2254,9 @@ function populateProductDetail(product) {
     const descEl = document.getElementById('pdDescription');
     if (product.description) {
         const points = product.description.split('. ').filter(p => p.trim());
-        descEl.innerHTML = points.length > 1 ? points.map(p => `<li>${p}</li>`).join('') : `<li>${product.description}</li>`;
+        descEl.innerHTML = points.length > 1
+            ? points.map(p => `<li>${escapeHtml(p)}</li>`).join('')
+            : `<li>${escapeHtml(product.description)}</li>`;
     } else {
         descEl.innerHTML = `<li>No description provided.</li>`;
     }
@@ -1709,10 +2395,10 @@ function renderProductReviews(product) {
             return `
                 <div class="review-card">
                     <div class="review-header">
-                        <span class="review-author">${userName}</span>
+                        <span class="review-author">${escapeHtml(userName)}</span>
                         <div class="review-stars">${starsHtml}</div>
                     </div>
-                    ${r.review ? `<p class="review-text">${r.review}</p>` : ''}
+                    ${r.review ? `<p class="review-text">${escapeHtml(r.review)}</p>` : ''}
                 </div>
             `;
         }).join('');
@@ -1894,14 +2580,167 @@ function setupPdImageSwipe() {
 }
 
 // ====== MODAL UTILS ====== //
+// Sheets behave like native screens: the page behind them never scrolls, and
+// the hardware/browser back button dismisses the top one instead of leaving.
+let modalStack = [];
+let suppressModalPop = false;
+
+/**
+ * Single source of truth for the page scroll lock.
+ *
+ * This asks the DOM what is actually open rather than counting opens and
+ * closes, so it cannot drift. That matters more than it sounds: if the lock
+ * is ever left on with nothing open, the page simply stops scrolling and
+ * there is no way for the customer to recover short of a reload.
+ */
+function isAnyOverlayOpen() {
+    return !!document.querySelector('.modal-overlay:not([hidden])')
+        || !!document.querySelector('.cart-sidebar.open')
+        || !!document.querySelector('.wishlist-sidebar.open')
+        // The category drawer sets the lock itself; it must be counted here
+        // too or closing any modal would unlock the page behind an open drawer.
+        || !!document.querySelector('.cat-drawer.open');
+}
+
+function syncBodyScrollLock() {
+    const anyOpen = isAnyOverlayOpen();
+    document.body.classList.toggle('overlay-open', anyOpen);
+    document.body.style.overflow = anyOpen ? 'hidden' : '';
+}
+window.syncBodyScrollLock = syncBodyScrollLock;
+
+/**
+ * Safety net. If the lock is somehow left on with nothing open — an exception
+ * partway through a close handler, a stale class — release it rather than
+ * leaving the customer on a page that will not scroll.
+ */
+function releaseStuckScrollLock() {
+    const locked = document.body.style.overflow === 'hidden'
+        || document.body.classList.contains('overlay-open');
+    if (locked && !isAnyOverlayOpen()) {
+        document.body.classList.remove('overlay-open');
+        document.body.style.overflow = '';
+    }
+}
+window.releaseStuckScrollLock = releaseStuckScrollLock;
+
+// Cheap, and only ever acts when the page is already broken.
+setInterval(releaseStuckScrollLock, 1000);
+window.addEventListener('pageshow', releaseStuckScrollLock);
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Remembers what had focus before each modal opened, so closing returns the
+// customer exactly where they were — required for keyboard and screen readers.
+let focusReturnStack = [];
+
 window.openModal = function (id) {
     const el = document.getElementById(id);
-    if (el) el.hidden = false;
+    if (!el || el.hidden === false) return;
+
+    focusReturnStack.push(document.activeElement);
+    el.hidden = false;
+
+    // Announce it as a dialog rather than an anonymous div.
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    const heading = el.querySelector('h1, h2, h3');
+    if (heading) {
+        if (!heading.id) heading.id = `${id}Heading`;
+        el.setAttribute('aria-labelledby', heading.id);
+    }
+
+    modalStack.push(id);
+    try { history.pushState({ glomekModal: id }, ''); } catch { /* history unavailable */ }
+    syncBodyScrollLock();
+
+    // Move focus inside so the next Tab lands in the dialog, not behind it.
+    requestAnimationFrame(() => {
+        const target = el.querySelector('input:not([type="hidden"]):not([disabled]), textarea, button:not(.close-modal)')
+            || el.querySelector(FOCUSABLE);
+        if (target) target.focus();
+    });
 }
+
+/** Keeps Tab inside the top-most dialog. */
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const top = modalStack[modalStack.length - 1];
+    if (!top) return;
+
+    const el = document.getElementById(top);
+    if (!el) return;
+
+    const items = [...el.querySelectorAll(FOCUSABLE)].filter(n => n.offsetParent !== null);
+    if (items.length === 0) return;
+
+    const first = items[0];
+    const last = items[items.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+    }
+});
+
 window.closeModal = function (id) {
     const el = document.getElementById(id);
-    if (el) el.hidden = true;
+    if (!el || el.hidden) return;
+    el.hidden = true;
+    const idx = modalStack.lastIndexOf(id);
+    if (idx > -1) modalStack.splice(idx, 1);
+    syncBodyScrollLock();
+
+    const returnTo = focusReturnStack.pop();
+    if (returnTo && typeof returnTo.focus === 'function' && document.contains(returnTo)) {
+        returnTo.focus();
+    }
+
+    // Drop the matching history entry so back/forward stays in step.
+    if (history.state && history.state.glomekModal === id) {
+        suppressModalPop = true;
+        try { history.back(); } catch { suppressModalPop = false; }
+    }
 }
+
+window.addEventListener('popstate', () => {
+    if (suppressModalPop) { suppressModalPop = false; return; }
+
+    const top = modalStack[modalStack.length - 1];
+
+    // Nothing open — this is Back through the listing history, so restore the
+    // search / category / page the address bar now describes.
+    if (!top) {
+        applyListingFromUrl();
+        // Crucial: the load this triggers must NOT push a new history entry.
+        // It used to, so every Back press consumed one entry and immediately
+        // created another — you could press Back forever and never leave.
+        suppressUrlSync = true;
+        Promise.resolve(loadProducts()).finally(() => { suppressUrlSync = false; });
+        return;
+    }
+
+    // The history entry is already gone, so tear down without calling back()
+    // — but run the same focus/scroll cleanup closeModal does.
+    const el = document.getElementById(top);
+    if (el) el.hidden = true;
+    modalStack.pop();
+    syncBodyScrollLock();
+
+    const returnTo = focusReturnStack.pop();
+    if (returnTo && typeof returnTo.focus === 'function' && document.contains(returnTo)) {
+        returnTo.focus();
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const top = modalStack[modalStack.length - 1];
+    if (top) closeModal(top);
+});
 
 // ====================================================================
 // PHASE 1 & 2 — NEW FEATURES
@@ -1968,7 +2807,8 @@ function updateProductCount() {
 function updateBreadcrumbs() {
     const nav = document.getElementById('breadcrumbNav');
     if (!nav) return;
-    let html = '<a href="#" onclick="filterByCategory(null); return false;">Home</a>';
+    // "Home" clears whatever narrowed the listing — search term included.
+    let html = '<a href="#" onclick="exitListing(); return false;">Home</a>';
 
     if (state.selectedCategoryId) {
         const cat = state.categories.find(c => c._id === state.selectedCategoryId);
@@ -2028,8 +2868,8 @@ function renderRecentlyViewed() {
     section.hidden = false;
     scroll.innerHTML = state.recentlyViewed.map(item => `
         <div class="rv-card" onclick="openProductDetails('${item._id}')">
-            <img src="${item.image}" alt="${item.name}" loading="lazy">
-            <div class="rv-title">${item.name}</div>
+            <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_IMAGE;">
+            <div class="rv-title">${escapeHtml(item.name)}</div>
             <div class="rv-price">${formatPrice(item.price)}</div>
         </div>
     `).join('');
@@ -2080,6 +2920,7 @@ function updateWishlistBadge() {
     } else {
         badge.hidden = true;
     }
+    document.dispatchEvent(new CustomEvent('glomek:statechange'));
 }
 
 function toggleWishlist(show) {
@@ -2088,16 +2929,16 @@ function toggleWishlist(show) {
     if (show) {
         sidebar.classList.add('open');
         UI.cartOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
         renderWishlistSidebar();
     } else {
         sidebar.classList.remove('open');
         // Only remove overlay if cart sidebar is also closed
         if (!UI.cartSidebar.classList.contains('open')) {
             UI.cartOverlay.classList.remove('active');
-            document.body.style.overflow = '';
         }
     }
+    if (window.syncBodyScrollLock) window.syncBodyScrollLock();
+    document.dispatchEvent(new CustomEvent('glomek:statechange'));
 }
 
 function renderWishlistSidebar() {
@@ -2116,9 +2957,9 @@ function renderWishlistSidebar() {
 
     container.innerHTML = state.wishlist.map(item => `
         <div class="wishlist-item">
-            <img src="${item.image}" alt="${item.name}" onclick="openProductDetails('${item._id}'); toggleWishlist(false);">
+            <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_IMAGE;" onclick="openProductDetails('${item._id}'); toggleWishlist(false);">
             <div class="wishlist-item-info">
-                <div class="wishlist-item-title">${item.name}</div>
+                <div class="wishlist-item-title">${escapeHtml(item.name)}</div>
                 <div class="wishlist-item-price">${formatPrice(item.price)}</div>
                 <div class="wishlist-item-actions">
                     <button class="wishlist-add-cart-btn" onclick="addWishlistItemToCart('${item._id}')">Add to Cart</button>
@@ -2235,8 +3076,8 @@ function renderRelatedProducts(product) {
         const price = p.offerPrice || p.price || 0;
         return `
             <div class="pd-related-card" onclick="openProductDetails('${p._id || p.sId}')">
-                <img src="${img}" alt="${p.name}" loading="lazy">
-                <div class="rv-title">${p.name}</div>
+                <img src="${escapeHtml(img)}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_IMAGE;">
+                <div class="rv-title">${escapeHtml(p.name)}</div>
                 <div class="rv-price">${formatPrice(price)}</div>
             </div>
         `;
@@ -2319,7 +3160,7 @@ function showReceipt(orderData, orderRes) {
         </div>
         <div class="receipt-meta-item">
             <span class="label">Customer</span>
-            <span class="value">${receiptData.customerName}</span>
+            <span class="value">${escapeHtml(receiptData.customerName)}</span>
         </div>
     `;
 
@@ -2327,7 +3168,7 @@ function showReceipt(orderData, orderRes) {
     document.getElementById('receiptItems').innerHTML = receiptData.items.map(item => `
         <div class="receipt-item-row">
             <div class="receipt-item-info">
-                <div class="receipt-item-name">${item.productName || item.name || 'Item'}</div>
+                <div class="receipt-item-name">${escapeHtml(item.productName || item.name || 'Item')}</div>
                 <div class="receipt-item-qty">Qty: ${item.quantity}</div>
             </div>
             <div class="receipt-item-price">${formatPrice(item.price * item.quantity)}</div>
@@ -2363,11 +3204,13 @@ function showReceipt(orderData, orderRes) {
 
     // Populate shipping address
     const addr = receiptData.shippingAddress;
+    // Every field here is typed by the customer at checkout, so all of it is
+    // untrusted on the way back out.
     document.getElementById('receiptShipping').innerHTML = `
         <strong>Delivery Address</strong>
-        <p>${addr.street || ''}, ${addr.city || ''}<br>
-        ${addr.state || ''} ${addr.postalCode || ''}<br>
-        ${addr.country || 'Ghana'}${addr.phone && addr.phone !== 'N/A' ? '<br>Tel: ' + addr.phone : ''}</p>
+        <p>${escapeHtml(addr.street || '')}, ${escapeHtml(addr.city || '')}<br>
+        ${escapeHtml(addr.state || '')} ${escapeHtml(addr.postalCode || '')}<br>
+        ${escapeHtml(addr.country || 'Ghana')}${addr.phone && addr.phone !== 'N/A' ? '<br>Tel: ' + escapeHtml(addr.phone) : ''}</p>
     `;
 
     openModal('receiptModal');
@@ -2375,8 +3218,11 @@ function showReceipt(orderData, orderRes) {
 
 function formatPaymentMethod(method) {
     const map = {
+        'paystack_momo': 'Mobile Money (Paystack)',
+        'paystack_card': 'Card (Paystack)',
+        'paystack': 'Paystack',
+        // Legacy orders placed before the switch to Paystack-only checkout.
         'mtn_mobile_money': 'MTN Mobile Money',
-        'paystack_card': 'Card Payment (Paystack)',
         'cash_on_delivery': 'Cash on Delivery'
     };
     return map[method] || method;
@@ -2799,6 +3645,10 @@ function setupAccessibility() {
         ['#backToTopFab', 'Scroll back to top'],
         ['.search-submit-btn', 'Search products'],
         ['#clearSearchBtn', 'Clear search'],
+        ['#pdShareBtn', 'Share this product'],
+        ['#pdAddToCartBtn', 'Add this product to your cart'],
+        ['#pdBuyNowBtn', 'Buy this product now'],
+        ['#checkoutBtn', 'Proceed to secure checkout'],
     ];
     ariaMap.forEach(([sel, label]) => {
         const el = document.querySelector(sel);
@@ -2808,23 +3658,58 @@ function setupAccessibility() {
         }
     });
 
-    // Escape key to close modals (industry standard)
+    // Placeholders are not labels: a screen reader loses them the moment the
+    // customer types. Give every bare input an accessible name.
+    const inputLabels = {
+        searchInput: 'Search products on Glomek',
+        priceMin: 'Minimum price',
+        priceMax: 'Maximum price',
+        sortSelect: 'Sort products by',
+        authName: 'Full name',
+        authEmail: 'Email address',
+        authPassword: 'Password',
+        resetEmail: 'Email address',
+        resetOtp: 'Six-digit verification code',
+        resetNewPassword: 'New password',
+        chkPhone: 'Delivery phone number',
+        chkAddress: 'Street address',
+        chkCity: 'City',
+        chkState: 'State or region',
+        chkPostalCode: 'Postal code',
+        chkCountry: 'Country',
+        chkCoupon: 'Coupon code',
+        reviewText: 'Write your review',
+    };
+    Object.entries(inputLabels).forEach(([id, label]) => {
+        const el = document.getElementById(id);
+        if (el && !el.getAttribute('aria-label')) el.setAttribute('aria-label', label);
+    });
+
+    // Live region so toasts are announced rather than appearing silently.
+    const toastContainer = document.getElementById('toastContainer');
+    if (toastContainer) {
+        toastContainer.setAttribute('role', 'status');
+        toastContainer.setAttribute('aria-live', 'polite');
+        toastContainer.setAttribute('aria-atomic', 'false');
+    }
+
+    // The product grid updates asynchronously — announce result counts.
+    const countText = document.getElementById('productCountText');
+    if (countText) {
+        countText.setAttribute('role', 'status');
+        countText.setAttribute('aria-live', 'polite');
+    }
+
+    // Escape closes the sidebars. Modals are handled by the stack-based
+    // listener in MODAL UTILS — duplicating it here would close two layers
+    // on a single keypress.
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            // Close topmost open modal
-            const modals = ['productDetailModal', 'receiptModal', 'checkoutModal', 'profileModal', 'authModal', 'forgotPasswordModal', 'resetPasswordModal'];
-            for (const id of modals) {
-                const modal = document.getElementById(id);
-                if (modal && !modal.hidden) {
-                    closeModal(id);
-                    return;
-                }
-            }
-            // Close sidebars
-            if (UI.cartSidebar.classList.contains('open')) { toggleCart(false); return; }
-            const ws = document.getElementById('wishlistSidebar');
-            if (ws && ws.classList.contains('open')) { toggleWishlist(false); }
-        }
+        if (e.key !== 'Escape') return;
+        if (modalStack.length > 0) return; // a modal is on top; let it win
+
+        if (UI.cartSidebar.classList.contains('open')) { toggleCart(false); return; }
+        const ws = document.getElementById('wishlistSidebar');
+        if (ws && ws.classList.contains('open')) { toggleWishlist(false); }
     });
 }
 

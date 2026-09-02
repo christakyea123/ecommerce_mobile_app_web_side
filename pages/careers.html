@@ -2,10 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Careers at Glomek | Glomek E-Commerce</title>
     <meta name="description" content="Join Glomek's team and build the future of e-commerce in Africa.">
     <meta name="robots" content="index, follow">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://paystack.com https://checkout.paystack.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data: blob: https:;
+        connect-src 'self' https://api.glomek.com https://api.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        frame-src https://js.paystack.co https://checkout.paystack.com https://standard.paystack.co https://accounts.google.com;
+        form-action 'self' https://checkout.paystack.com;
+        base-uri 'self';
+        object-src 'none';
+        upgrade-insecure-requests;
+    ">
     <meta name="theme-color" content="#131921">
     <link rel="icon" type="image/png" sizes="any" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
     <link rel="apple-touch-icon" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
@@ -25,6 +38,7 @@
     <link rel="stylesheet" href="../css/components.css">
     <link rel="stylesheet" href="../css/pages.css">
     <link rel="stylesheet" href="../css/responsive.css">
+    <link rel="stylesheet" href="../css/mobile-app.css">
 </head>
 <body>
     <header class="navbar"><div class="nav-container"><div class="logo"><a href="../index.html" style="display:flex;align-items:center;"><img src="../assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo" class="brand-logo"></a></div><div class="nav-actions"><a href="../index.html" class="icon-btn" title="Back to Shop"><span class="material-symbols-rounded">storefront</span></a></div></div></header>
@@ -54,10 +68,11 @@
                     <div class="job-card"><div class="job-info"><h3>Customer Support Lead</h3><p>Operations · Accra</p></div><span class="job-tag">Full-time</span></div>
                     <div class="job-card"><div class="job-info"><h3>Marketing Manager</h3><p>Growth · Accra / Remote</p></div><span class="job-tag">Full-time</span></div>
                 </div>
-                <p style="margin-top:1.5rem;color:#565959;">Don't see a role that fits? Send your resume to <a href="mailto:glomekmarketing@gmail.com" style="color:#007185;">glomekmarketing@gmail.com</a></p>
+                <p style="margin-top:1.5rem;color:#565959;">Don't see a role that fits? Send your resume to <a href="mailto:glomekmarketing@gmail.com" style="color:#f68b1e;">glomekmarketing@gmail.com</a></p>
             </section>
         </div>
     </div>
     <footer class="amazon-footer"><div class="footer-back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">Back to top</div><div class="footer-links-container"><div class="footer-col"><h3>Get to Know Us</h3><ul><li><a href="about.html">About Glomek</a></li><li><a href="careers.html">Careers</a></li><li><a href="science.html">Glomek Science</a></li><li><a href="glomek-consult.html">Glomek IT Consult</a></li></ul></div><div class="footer-col"><h3>Let Us Help You</h3><ul><li><a href="account.html">Your Account</a></li><li><a href="orders.html">Your Orders</a></li><li><a href="shipping.html">Shipping Rates &amp; Policies</a></li><li><a href="returns.html">Returns &amp; Replacements</a></li><li><a href="help.html">Help</a></li></ul></div></div><div class="footer-bottom"><div class="footer-logo"><a href="../index.html"><img src="../assets/logo/Glomek%20App%20Logo2.png" alt="Glomek Logo"></a></div><div class="footer-copyright"><ul><li><a href="conditions.html">Conditions of Use</a></li><li><a href="privacy.html">Privacy Notice</a></li><li><a href="health-privacy.html">Consumer Health Data Privacy</a></li></ul><p>&copy; 2026, Glomek.com, Inc. or its affiliates</p></div></div></footer>
+    <script src="../js/mobile-app.js" defer></script>
 </body>
 </html>

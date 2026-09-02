@@ -6,6 +6,10 @@ Allow: /pages/about.html
 
 Disallow: /node_modules/
 Disallow: /tests/
+Disallow: /results.txt
+Disallow: /package.json
+Disallow: /package-lock.json
+Disallow: /.vscode/
 
 # Sitemap
 Sitemap: https://glomek.com/sitemap.xml

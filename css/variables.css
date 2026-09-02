@@ -9,10 +9,19 @@
   --surface-color: #ffffff;
   --accent-color: #f68b1e;
   --accent-hover: #e07b19;
-  --accent-light: #fef3e9;
+  --accent-light: #fee8d6; /* AppColor.lightJumiaOrange */
   --text-primary: #000000;
   --text-secondary: #75757a;
   --danger-color: #ef4444;
+
+  /* ── Item-count badges ──────────────────────────────────
+     Mirrors AppColor.darkOrange (0xFFFF9C08) from the Flutter app —
+     client_side/flutter_ecommerce/lib/utility/app_color.dart — so a cart
+     count reads the same on web and mobile. Change it in both places.
+     Every badge (navbar, bottom tab bar, product detail, floating cart)
+     uses this one token; there is no second definition. */
+  --badge-bg: #ff9c08;
+  --badge-fg: #ffffff;
 
   /* ── Elevation / Shadows ────────────────────────────── */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -37,10 +46,37 @@
   box-sizing: border-box;
 }
 
+/* ── The `hidden` attribute must actually hide ─────────────
+   The browser's own stylesheet says `[hidden] { display: none }`, but ANY
+   author rule that sets `display` outranks it. Every `.modal-overlay`, badge,
+   chip row and empty section here therefore stayed in the render tree while
+   appearing hidden — seven full-viewport fixed overlays, each carrying a
+   backdrop blur, composited over the page from first paint. That is what made
+   scrolling heavy, and on touch devices stopped it outright.
+
+   The selector is doubled deliberately. Several rules force display with
+   `!important` — `.pd-overlay { display: block !important }` among them. A
+   single `[hidden]` ties those on specificity and then loses on source order,
+   so that overlay would still be rendered. `[hidden][hidden]` scores higher
+   and wins outright, whatever the order. */
+[hidden],
+[hidden][hidden] {
+  display: none !important;
+}
+
+/* `overflow-x: hidden` turns an element into a scroll container in BOTH axes
+   (the other computes to `auto`). Setting it on <html> and <body> makes two
+   nested scrollers out of the document root, which on touch devices can leave
+   the page unable to scroll vertically at all.
+
+   `overflow-x: clip` stops sideways overflow WITHOUT creating a scroll
+   container, which is what is actually wanted. The `hidden` line stays first
+   as a fallback for older engines, where `clip` is simply ignored. */
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -51,6 +87,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 img,
@@ -108,12 +145,16 @@ button {
 .shimmer-wrapper { animation: shimmer 1.5s infinite; }
 .shimmer-poster { width: 100%; height: 100%; background: var(--bg-color); animation: shimmer 1.5s infinite; }
 .shimmer-pill { width: 120px; height: 45px; background: var(--surface-color); border-radius: 999px; }
-.shimmer-card { height: 320px; background: var(--surface-color); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
-.shimmer-img { height: 200px; background: var(--bg-color); }
-.shimmer-lines { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.shimmer-line { height: 14px; background: var(--bg-color); border-radius: 4px; }
+/* The skeleton mirrors the real product card block for block. If it doesn't,
+   every row jumps the moment products arrive — that shift is Cumulative Layout
+   Shift, and it is a Core Web Vitals ranking factor. Image height tracks
+   .jumia-img-container at every breakpoint (see responsive.css). */
+.shimmer-card { background: var(--surface-color); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.shimmer-img { height: 180px; flex-shrink: 0; background: var(--bg-color); }
+.shimmer-lines { padding: 12px 10px 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.shimmer-line { height: 22px; background: var(--bg-color); border-radius: 4px; }
 .shimmer-line.short { width: 60%; }
-.shimmer-line.price { width: 40%; height: 20px; margin-top: auto; }
+.shimmer-line.price { width: 45%; height: 28px; margin-top: auto; }
 
 /* ── Form Inputs ───────────────────────────────────────── */
 .form-input {

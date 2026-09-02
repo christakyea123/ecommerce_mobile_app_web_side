@@ -1,3 +1,16 @@
+// This page does not load app.js, so it carries its own copy. Every value that
+// reaches an innerHTML sink below goes through it.
+function escapeHtml(unsafe) {
+    if (unsafe === null || unsafe === undefined) return '';
+    return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
@@ -15,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         contentCard.innerHTML = `
             <h1 class="page-title">Your Orders</h1>
             <section class="page-section">
-                <p style="margin-top:1rem;color:#565959;">Please <a href="../index.html" style="color:#007185;">log in on the main store</a> to view your orders.</p>
+                <p style="margin-top:1rem;color:#565959;">Please <a href="../index.html" style="color:#f68b1e;">log in on the main store</a> to view your orders.</p>
             </section>
         `;
         return;
@@ -57,7 +70,7 @@ function renderOrders(orders) {
         const date = new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         const itemsList = (order.items || []).map(i => {
            return `<div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
-                <span>${i.quantity}x ${i.productName || i.name || 'Product'}</span>
+                <span>${escapeHtml(i.quantity)}x ${escapeHtml(i.productName || i.name || 'Product')}</span>
                 <span>GH₵${(i.price * i.quantity).toFixed(2)}</span>
            </div>`;
         }).join('');
@@ -78,7 +91,7 @@ function renderOrders(orders) {
                         </div>
                         <div>
                             <div style="font-size:0.75rem; color:#565959; text-transform:uppercase;">Dispatch To</div>
-                            <div style="font-size:0.9rem; color:#007185;">${currentUser.name || 'Customer'}</div>
+                            <div style="font-size:0.9rem; color:#f68b1e;">${escapeHtml(currentUser.name || 'Customer')}</div>
                         </div>
                     </div>
                     <div style="text-align: right;">
@@ -88,7 +101,7 @@ function renderOrders(orders) {
                 
                 <div style="padding: 1.5rem; display: flex; flex-direction:column; gap: 1rem;">
                     <div>
-                        <h3 style="font-size:1.1rem; color: ${statusColor}; text-transform: capitalize; margin-bottom: 0.5rem;">${order.orderStatus || 'Pending'}</h3>
+                        <h3 style="font-size:1.1rem; color: ${statusColor}; text-transform: capitalize; margin-bottom: 0.5rem;">${escapeHtml(order.orderStatus || 'Pending')}</h3>
                         <div style="border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-bottom: 1rem;">
                             ${itemsList}
                         </div>
@@ -294,8 +307,11 @@ window.downloadOrderPDF = function(order) {
 function formatPaymentMethod(method) {
     if (!method) return 'N/A';
     const map = {
-        'mtn_mobile_money': 'MTN Mobile Money',
+        'paystack_momo': 'Mobile Money (Paystack)',
         'paystack_card': 'Card (Paystack)',
+        'paystack': 'Paystack',
+        // Legacy orders placed before the switch to Paystack-only checkout.
+        'mtn_mobile_money': 'MTN Mobile Money',
         'cash_on_delivery': 'Cash on Delivery'
     };
     return map[method] || method;

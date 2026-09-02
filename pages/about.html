@@ -2,10 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>About Glomek | Glomek E-Commerce</title>
     <meta name="description" content="Learn about Glomek, Africa's trusted e-commerce platform.">
     <meta name="robots" content="index, follow">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://js.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://paystack.com https://checkout.paystack.com;
+        font-src 'self' https://fonts.gstatic.com data:;
+        img-src 'self' data: blob: https:;
+        connect-src 'self' https://api.glomek.com https://api.paystack.co https://checkout.paystack.com https://accounts.google.com https://cdnjs.cloudflare.com;
+        frame-src https://js.paystack.co https://checkout.paystack.com https://standard.paystack.co https://accounts.google.com;
+        form-action 'self' https://checkout.paystack.com;
+        base-uri 'self';
+        object-src 'none';
+        upgrade-insecure-requests;
+    ">
     <meta name="theme-color" content="#131921">
     <link rel="icon" type="image/png" sizes="any" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
     <link rel="apple-touch-icon" href="https://glomek.com/assets/logo/Glomek%20App%20Logo2.png">
@@ -26,6 +39,7 @@
     <link rel="stylesheet" href="../css/components.css">
     <link rel="stylesheet" href="../css/pages.css">
     <link rel="stylesheet" href="../css/responsive.css">
+    <link rel="stylesheet" href="../css/mobile-app.css">
 </head>
 <body>
     <!-- Navbar -->
@@ -55,7 +69,7 @@
 
             <section class="page-section">
                 <h2>Our Story</h2>
-                <p>Glomek was founded with a simple mission: to make premium products accessible to everyone in Ghana and across Africa. What started as a small idea has grown into a vibrant marketplace connecting millions of buyers with trusted sellers.</p>
+                <p>Glomek was founded with a simple mission: to make premium products accessible to everyone in Ghana and across Africa. What started as a small idea has grown into a trusted store bringing quality products directly to customers nationwide.</p>
                 <p>We believe that shopping should be seamless, secure, and enjoyable. That's why we've invested heavily in building a platform that prioritizes user experience, product authenticity, and fast delivery.</p>
             </section>
             <section class="page-section">
@@ -78,7 +92,7 @@
                     <div class="value-card">
                         <span class="material-symbols-rounded">diversity_3</span>
                         <h3>Community</h3>
-                        <p>We empower local sellers and artisans to reach customers nationwide.</p>
+                        <p>We source from local artisans and brands, and deliver them nationwide.</p>
                     </div>
                     <div class="value-card">
                         <span class="material-symbols-rounded">eco</span>
@@ -101,5 +115,6 @@
             <div class="footer-copyright"><ul><li><a href="conditions.html">Conditions of Use</a></li><li><a href="privacy.html">Privacy Notice</a></li><li><a href="health-privacy.html">Consumer Health Data Privacy</a></li></ul><p>&copy; 2026, Glomek.com, Inc. or its affiliates</p></div>
         </div>
     </footer>
+    <script src="../js/mobile-app.js" defer></script>
 </body>
 </html>

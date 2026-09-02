@@ -1,0 +1,1259 @@
+/* ==========================================================================
+   MODERN MARKETPLACE LAYER — Glomek
+   Adopts the layout patterns that make big marketplaces feel current — pill
+   search, tinted section cards, circular category tiles, horizontal rails,
+   rating rows, service strips — rendered entirely in the Glomek palette.
+   No purple, no borrowed brand colour: everything below resolves to the
+   tokens in variables.css.
+
+   Loaded after mobile-app.css, so this is the last word on shared selectors.
+   ========================================================================== */
+
+:root {
+  --radius-card: 14px;
+  --radius-section: 18px;
+  --radius-pill: 999px;
+
+  /* Tinted section background — the Glomek answer to Jumia's lilac panels. */
+  --section-tint: #fff6ec;
+  --section-tint-strong: var(--accent-light);
+
+  /* "You save" green. Universal savings signal, kept distinct from the brand
+     orange so a discount never competes with a call to action. */
+  --save-green: #128a44;
+  --save-green-bg: #e7f6ed;
+
+  --star-gold: #f6a609;
+  --hairline: #ececec;
+}
+
+/* ==========================================================================
+   1. SEARCH — single rounded pill, icon inside
+   ========================================================================== */
+.search-bar-wrapper {
+  border-radius: var(--radius-pill) !important;
+  overflow: hidden;
+  border: 1.5px solid transparent;
+  background: #f1f2f4;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.search-bar-wrapper:focus-within {
+  background: #fff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(246, 139, 30, 0.16);
+}
+
+.search-bar-wrapper::before {
+  content: 'search';
+  font-family: 'Material Symbols Rounded';
+  font-size: 22px;
+  color: #6b7076;
+  padding-left: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+/* min-width:0 is essential. A flex item will not shrink below its intrinsic
+   minimum, and an <input> reports roughly 180px regardless of `flex: 1`. On a
+   narrow screen the icon + input + clear + Search button then exceeded the
+   wrapper, and because .search-bar-wrapper is `overflow: hidden` the Search
+   button was silently clipped away — present in the DOM, impossible to tap. */
+.search-input {
+  background: transparent !important;
+  border: none !important;
+  padding-left: 10px !important;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.search-submit-btn {
+  border-radius: var(--radius-pill) !important;
+  margin: 4px;
+  padding: 0 18px !important;
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  flex-shrink: 0;      /* never let the tap target be squeezed to nothing */
+  white-space: nowrap;
+}
+
+/* Very narrow phones: drop the word, keep a full-size icon button. */
+@media (max-width: 420px) {
+  .search-submit-btn {
+    padding: 0 !important;
+    width: 36px;
+    font-size: 0;
+    display: grid;
+    place-items: center;
+  }
+
+  .search-submit-btn::after {
+    content: 'search';
+    font-family: 'Material Symbols Rounded';
+    font-size: 20px;
+    color: #fff;
+  }
+
+  .search-bar-wrapper::before {
+    padding-left: 12px;
+    font-size: 20px;
+  }
+}
+
+/* ==========================================================================
+   1b. HEADER — hamburger, logo, actions (marketplace ordering)
+   ========================================================================== */
+.mobile-menu-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: none !important;
+  background: transparent;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0;
+  order: -1; /* always first, even when the header wraps */
+}
+
+.mobile-menu-btn .material-symbols-rounded {
+  font-size: 28px;
+}
+
+.mobile-menu-btn:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ==========================================================================
+   1c. CATEGORY DRAWER — slides in from the left
+   ========================================================================== */
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100002;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+
+.drawer-scrim.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cat-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100003;
+  width: 84%;
+  max-width: 340px;
+  background: var(--surface-color);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.3s var(--ease-out-app, cubic-bezier(0.16, 1, 0.3, 1));
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+  padding-top: var(--safe-top, 0px);
+  padding-bottom: var(--safe-bottom, 0px);
+}
+
+.cat-drawer.open {
+  transform: translateX(0);
+}
+
+.cat-drawer-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #131921;
+  color: #fff;
+}
+
+.cat-drawer-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.cat-drawer-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.cat-drawer-account {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--section-tint);
+  border-bottom: 1px solid var(--hairline);
+  font-size: 0.9rem;
+}
+
+.cat-drawer-account .material-symbols-rounded {
+  font-size: 26px;
+  color: var(--accent-color);
+}
+
+.cat-drawer-signin {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--accent-color);
+}
+
+/* ── Primary nav block (Home / Saved / Cart / Account) ──── */
+.cat-drawer-main {
+  flex-shrink: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.cat-drawer-row.nav > .material-symbols-rounded:first-child {
+  color: var(--accent-color);
+  background: var(--accent-light);
+}
+
+/* Count pill on the Cart / Saved rows — same colour as every other badge */
+.cat-drawer-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+}
+
+.cat-drawer-count[hidden] {
+  display: none;
+}
+
+.cat-drawer-sectionlabel {
+  flex-shrink: 0;
+  padding: 12px 16px 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.cat-drawer-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 0 0 6px;
+}
+
+.cat-drawer-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.cat-drawer-row:active {
+  background: var(--section-tint);
+}
+
+.cat-drawer-row.active {
+  background: var(--accent-light);
+  color: #a2560a;
+}
+
+.cat-drawer-row img,
+.cat-drawer-row > .material-symbols-rounded:first-child {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+  background: var(--bg-color);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  color: var(--accent-color);
+}
+
+.cat-drawer-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-drawer-chev {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #b9bec3;
+}
+
+.cat-drawer-subs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 12px 62px;
+}
+
+.cat-drawer-sub {
+  border: 1px solid var(--hairline);
+  background: var(--bg-color);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.cat-drawer-sub:active {
+  background: var(--accent-light);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.cat-drawer-empty {
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.cat-drawer-foot {
+  flex-shrink: 0;
+  border-top: 1px solid var(--hairline);
+  padding: 8px 0;
+}
+
+.cat-drawer-foot a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cat-drawer-foot .material-symbols-rounded {
+  font-size: 21px;
+  color: var(--text-secondary);
+}
+
+/* The drawer is a mobile pattern; desktop keeps the category bar. */
+@media (min-width: 901px) {
+  .mobile-menu-btn { display: none !important; }
+  .cat-drawer,
+  .drawer-scrim { display: none; }
+}
+
+/* ==========================================================================
+   2. SECTION CARDS — content grouped on tinted rounded panels
+   ========================================================================== */
+.gl-section {
+  background: var(--surface-color);
+  border-radius: var(--radius-section);
+  padding: 16px 14px;
+  margin: 0 auto 14px;
+  max-width: 1450px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.gl-section.tinted {
+  background: var(--section-tint);
+}
+
+.gl-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.gl-section-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.gl-section.tinted .gl-section-title {
+  color: #a2560a;
+}
+
+.gl-section-link {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.gl-section-link .material-symbols-rounded {
+  font-size: 18px;
+}
+
+/* ==========================================================================
+   3. CIRCULAR CATEGORY TILES — "your essentials, all in one place"
+   ========================================================================== */
+.gl-circle-rail {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.gl-circle-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.gl-circle-item {
+  flex: 0 0 auto;
+  width: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  scroll-snap-align: start;
+  font-family: inherit;
+}
+
+.gl-circle-thumb {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #fff;
+  border: 2px solid var(--accent-light);
+  display: grid;
+  place-items: center;
+  transition: transform 0.18s var(--ease-out-app, ease), border-color 0.18s ease;
+}
+
+.gl-circle-item:active .gl-circle-thumb {
+  transform: scale(0.93);
+}
+
+.gl-circle-item.active .gl-circle-thumb {
+  border-color: var(--accent-color);
+}
+
+.gl-circle-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gl-circle-thumb .material-symbols-rounded {
+  font-size: 32px;
+  color: var(--accent-color);
+}
+
+.gl-circle-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   4. HORIZONTAL PRODUCT RAILS — flash sales, recommended, sponsored
+   ========================================================================== */
+.gl-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.gl-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.gl-rail > .product-card {
+  flex: 0 0 46%;
+  max-width: 190px;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 640px) {
+  .gl-rail > .product-card { flex-basis: 30%; }
+}
+
+@media (min-width: 900px) {
+  .gl-rail > .product-card { flex-basis: 19%; }
+}
+
+/* ==========================================================================
+   SEARCH RESULTS VIEW
+   A search should read as a results page — term, count, a way back and chips
+   to narrow down — not as a bare grid with the homepage stripped away.
+   ========================================================================== */
+/* Deliberately not a card. The breadcrumb above already states where you are
+   and offers the way back, so a second heavy header just repeats it and eats
+   the space the results should occupy — which is why Jumia's reads cleaner:
+   breadcrumb, one quiet label row, filter chips, then straight into products. */
+.listing-bar {
+  padding: 2px 4px 10px;
+  margin: 0 auto;
+  max-width: 1450px;
+}
+
+.lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.srh-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
+.srh-term {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.srh-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Refine-by-category chips */
+.srh-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.srh-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.srh-chip {
+  flex-shrink: 0;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
+.srh-chip em {
+  font-style: normal;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.srh-chip.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+}
+
+.srh-chip.active em {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* The sort and price controls scroll away with the rest of the page.
+   They were sticky, but the chip row is transparent, so pinning it left the
+   controls floating over the product cards as you scrolled — unreadable, and
+   covering the results. They belong at the top of the listing and nowhere
+   else. */
+@media (max-width: 900px) {
+  body.is-searching .navbar {
+    position: sticky;
+  }
+}
+
+/* .main-content carries a -120px top margin so it tucks under the hero. When
+   the hero is hidden (during a search) that margin pulled the breadcrumb up
+   underneath the header, where it collided with the search box. Tied to the
+   hero actually being hidden — not to "is searching" — because a category
+   listing keeps its hero and still needs the overlap. */
+body.hero-hidden .main-content {
+  margin-top: 0 !important;
+}
+
+/* ── Rating count → jumps to the reviews block ────────── */
+.pd-rating-link {
+  margin-left: 8px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.pd-rating-link:hover {
+  color: var(--accent-color);
+}
+
+/* Brief highlight so it is obvious where the click landed. */
+@keyframes pdReviewsFlash {
+  0%   { background: var(--accent-light); }
+  100% { background: transparent; }
+}
+
+.pd-reviews-flash {
+  animation: pdReviewsFlash 1.2s ease-out;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-reviews-flash { animation: none; }
+}
+
+/* ==========================================================================
+   LISTING CONTROLS — one scrollable row of filter chips
+   Replaces a wrapping bar of raw form controls with the compact chip row a
+   marketplace uses. Brand orange throughout; no new colours introduced.
+   ========================================================================== */
+.sort-filter-bar {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px !important;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  background: transparent !important;
+  border: none !important;
+}
+
+.sort-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.sort-filter-left {
+  display: contents; /* let the count and the select sit in the chip row */
+}
+
+.product-count-text {
+  flex-shrink: 0;
+  order: -1;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  align-self: center;
+}
+
+/* The sort control, dressed as a chip with its own caret. */
+.sort-select {
+  flex-shrink: 0;
+  width: auto !important;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--radius-pill) !important;
+  background: var(--surface-color)
+    url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2375757a' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  padding: 7px 30px 7px 14px !important;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sort-select:focus-visible {
+  border-color: var(--accent-color) !important;
+}
+
+/* Price range, dressed as a single chip. */
+.price-range-section {
+  flex-shrink: 0;
+  display: flex !important;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap !important;
+  width: auto !important;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--surface-color);
+  padding: 4px 6px 4px 12px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.price-range-input {
+  width: 58px !important;
+  border: none !important;
+  background: transparent !important;
+  font-size: 0.78rem;
+  padding: 3px 2px !important;
+  color: var(--text-primary);
+}
+
+.price-go-btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 5px 12px;
+}
+
+/* ── Card "Add to cart" — full width, like a marketplace card ── */
+.card-add-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-color);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: background 0.16s ease, transform 0.1s ease;
+}
+
+.card-add-btn:hover {
+  background: var(--accent-hover);
+}
+
+.card-add-btn:active {
+  transform: scale(0.97);
+}
+
+/* Confirmation after tapping. Green is the universal "done" signal and is
+   already in the palette for savings — keeping it orange would make a
+   completed action look identical to one not yet taken. */
+.card-add-btn.added {
+  background: var(--save-green);
+  animation: cardAddPop 0.4s ease;
+}
+
+@keyframes cardAddPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-add-btn.added { animation: none; }
+}
+
+@media (max-width: 420px) {
+  .card-add-btn {
+    font-size: 0.76rem;
+    padding: 7px 8px;
+  }
+}
+
+/* ── Numbered pagination ──────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 18px 8px 6px;
+}
+
+.pagination[hidden] {
+  display: none;
+}
+
+.pg-btn {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.pg-btn:hover:not(:disabled):not(.active) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.pg-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.pg-btn.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+  cursor: default;
+}
+
+.pg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pg-arrow .material-symbols-rounded {
+  font-size: 20px;
+}
+
+.pg-gap {
+  min-width: 22px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-weight: 700;
+  user-select: none;
+}
+
+@media (max-width: 420px) {
+  .pagination { gap: 4px; }
+
+  .pg-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 7px;
+    font-size: 0.82rem;
+  }
+}
+
+/* ── Rail arrows (pointer devices) ────────────────────── */
+.gl-rail-wrap {
+  position: relative;
+}
+
+.gl-rail-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  display: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.97);
+  color: var(--text-primary);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.16);
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.gl-rail-arrow.prev { left: -6px; }
+.gl-rail-arrow.next { right: -6px; }
+
+.gl-rail-arrow:hover {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.gl-rail-arrow[hidden] {
+  display: none !important;
+}
+
+/* Only where there is a real pointer, and only when there is overflow. */
+@media (hover: hover) and (pointer: fine) {
+  .gl-rail-wrap.has-overflow .gl-rail-arrow:not([hidden]) {
+    display: grid;
+  }
+}
+
+/* Countdown pill for a flash-sale header */
+.gl-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gl-countdown span {
+  background: var(--text-primary);
+  color: #fff;
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+
+.gl-countdown em {
+  color: var(--text-secondary);
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   5. PRODUCT CARD — rating row, savings badge, cleaner price stack
+   ========================================================================== */
+.jumia-card {
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--surface-color);
+  border: 1px solid var(--hairline);
+  box-shadow: none;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.jumia-card:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.09);
+  transform: translateY(-2px);
+}
+
+/* Savings badge — green reads as "money off" everywhere. */
+.jumia-discount-tag {
+  background: var(--save-green) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  padding: 2px 6px !important;
+  letter-spacing: -0.01em;
+}
+
+.card-rating {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: 2px 0 4px;
+  line-height: 1;
+}
+
+.card-rating-star {
+  font-size: 15px;
+  color: var(--star-gold);
+  font-variation-settings: 'FILL' 1;
+}
+
+.card-rating-score {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.card-rating-count {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.jumia-price-was {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+}
+
+.jumia-old-price {
+  text-decoration: line-through;
+  color: #9aa0a6;
+  font-size: 0.78rem;
+}
+
+.card-stock-left {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #b23c17;
+  background: #fdece5;
+  border-radius: var(--radius-pill);
+  padding: 3px 8px;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   6. TRUST / SERVICES STRIP — "explore our quality services"
+   ========================================================================== */
+.gl-services {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.gl-service {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface-color);
+  border: 1px solid var(--hairline);
+}
+
+.gl-service .material-symbols-rounded {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent-color);
+  font-size: 21px;
+}
+
+.gl-service-copy strong {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.gl-service-copy span {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   7. CALL TO ORDER STRIP
+   ========================================================================== */
+.gl-call-strip {
+  max-width: 1450px;
+  margin: 0 auto 12px;
+  padding: 9px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  background: var(--section-tint);
+  border-radius: var(--radius-pill);
+}
+
+.gl-call-strip .material-symbols-rounded {
+  font-size: 19px;
+  color: var(--accent-color);
+}
+
+.gl-call-strip a {
+  font-weight: 800;
+  color: var(--accent-color);
+}
+
+/* ==========================================================================
+   8. HERO — rounded, peeking neighbours, pill indicators
+   ========================================================================== */
+.premium-hero .poster-container {
+  border-radius: var(--radius-section);
+  overflow: hidden;
+}
+
+/* The hero used to sit flush to all four edges, so the page read as one solid
+   block. It now has the same gutters as the sections below it and breathing
+   room above and below, which is what makes a card feel deliberate. */
+.hero-wrapper {
+  padding: 12px 12px 0 !important;
+  margin-bottom: 16px !important;
+}
+
+.premium-hero {
+  margin-bottom: 0 !important;
+}
+
+/* Soften the poster into a card rather than a full-bleed slab. */
+.premium-hero .poster-container {
+  box-shadow: var(--shadow-card);
+}
+
+/* Consistent vertical rhythm between every home section. */
+.gl-section + .gl-section {
+  margin-top: 0;
+}
+
+/* .categories-section only has content once a category is chosen — the rest of
+   the time its pill list is [hidden] and the section is empty. It still
+   carried a 1.5rem margin (from hero.css plus an inline style), which showed
+   up as a wide band of dead space directly above the "Home" breadcrumb.
+   The spacing now belongs to the pills, so it exists only when they do. */
+.categories-section {
+  margin-bottom: 0 !important;
+}
+
+.subcategory-list:not([hidden]) {
+  margin-bottom: 12px;
+}
+
+.breadcrumb-nav {
+  margin-top: 0;
+  padding-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .hero-wrapper {
+    padding: 10px 10px 0 !important;
+    margin-bottom: 12px !important;
+  }
+}
+
+.poster-dot {
+  background: #d3d6d9 !important;
+  border-radius: var(--radius-pill);
+  transition: width 0.25s ease, background 0.25s ease;
+}
+
+.poster-dot.active {
+  background: var(--accent-color) !important;
+}
+
+/* ==========================================================================
+   9. SCROLL PERFORMANCE
+   ========================================================================== */
+
+/* `transition: all` makes the browser watch every animatable property on the
+   card, including layout-affecting ones. Naming the two that actually change
+   keeps the work on the compositor. */
+.product-card,
+.jumia-card {
+  transition: box-shadow 0.25s ease, transform 0.25s ease !important;
+}
+
+.product-image {
+  transition: transform 0.4s ease !important;
+}
+
+/* NOTE ON content-visibility
+   It was applied to product cards here and removed again. On a grid of this
+   size it saved nothing measurable, and it makes wheel-scrolling worse: each
+   card entering the viewport has to be laid out and painted mid-gesture, and
+   the intrinsic-size placeholder fights scroll anchoring, which is felt most
+   with a mouse wheel. Only genuinely huge, off-screen regions benefit.
+
+   NOTE ON will-change
+   Also removed. `will-change: transform` on the drawer and both sidebars kept
+   three full-height compositor layers alive permanently, for panels that are
+   almost always closed. A transform transition promotes the layer while it
+   animates anyway — which is the only time it is needed. */
+
+/* Rails scroll horizontally; isolate them from the page's own scrolling. */
+.gl-rail,
+.gl-circle-rail,
+.category-list {
+  overscroll-behavior-x: contain;
+}
+
+/* Isolate each card's paint so hovering one cannot invalidate the whole grid. */
+.product-card {
+  contain: paint;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media (max-width: 768px) {
+  .gl-section {
+    border-radius: var(--radius-card);
+    padding: 14px 12px;
+    margin-bottom: 10px;
+  }
+
+  .gl-section-title {
+    font-size: 1.02rem;
+  }
+
+  .gl-circle-item {
+    width: 72px;
+  }
+
+  .gl-circle-thumb {
+    width: 66px;
+    height: 66px;
+  }
+
+  .hero-wrapper {
+    padding: 0 8px;
+  }
+
+  .gl-call-strip {
+    font-size: 0.8rem;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 400px) {
+  .gl-circle-item { width: 64px; }
+  .gl-circle-thumb { width: 58px; height: 58px; }
+  .gl-circle-label { font-size: 0.68rem; }
+}

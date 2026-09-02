@@ -221,6 +221,22 @@
   text-decoration: line-through;
 }
 
+/* ── Quick add-to-cart, right on the card ──────────────── */
+.product-price-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.price-stack {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Confirmation flash after tapping (icon is swapped in JS) */
+
 /* ── Empty State ───────────────────────────────────────── */
 .empty-state { text-align: center; padding: 4rem 1rem; }
 .empty-icon { font-size: 4rem; color: var(--text-secondary); margin-bottom: 1rem; }
@@ -253,7 +269,7 @@
   color: #565959;
   white-space: nowrap;
 }
-.product-count-text strong { color: #c45500; font-weight: 700; }
+.product-count-text strong { color: #e07b19; font-weight: 700; }
 
 .sort-select {
   padding: 6px 28px 6px 10px;
@@ -273,7 +289,7 @@
   transition: border-color 0.2s;
 }
 .sort-select:hover { background: #e3e6e6; }
-.sort-select:focus { border-color: #007185; box-shadow: 0 0 0 3px rgba(0,113,133,0.15); }
+.sort-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(0,113,133,0.15); }
 
 .price-range-section {
   display: flex;
@@ -292,7 +308,7 @@
   outline: none;
   background: #fff;
 }
-.price-range-input:focus { border-color: #007185; }
+.price-range-input:focus { border-color: var(--accent-color); }
 
 .price-go-btn {
   padding: 5px 14px;

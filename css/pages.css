@@ -17,11 +17,11 @@
     margin-bottom: 1rem;
 }
 .page-breadcrumb a {
-    color: #007185;
+    color: var(--accent-color);
     text-decoration: none;
 }
 .page-breadcrumb a:hover {
-    color: #c45500;
+    color: #e07b19;
     text-decoration: underline;
 }
 
@@ -112,7 +112,7 @@
     margin-top: 1rem;
 }
 .stat-card {
-    background: linear-gradient(135deg, #131921 0%, #232f3e 100%);
+    background: linear-gradient(135deg, #131921 0%, #131921 100%);
     color: #fff;
     border-radius: 8px;
     padding: 1.5rem;
@@ -127,7 +127,7 @@
     font-family: var(--font-display);
     font-size: 2rem;
     font-weight: 900;
-    color: #FFD814;
+    color: #f68b1e;
     margin-bottom: 0.25rem;
 }
 .stat-label {
@@ -157,7 +157,7 @@
 .benefit-item:hover { transform: translateY(-3px); }
 .benefit-item .material-symbols-rounded {
     font-size: 2.5rem;
-    color: #007185;
+    color: var(--accent-color);
     margin-bottom: 0.75rem;
 }
 .benefit-item h3 { font-size: 1rem; font-weight: 700; color: #0f1111; margin-bottom: 0.5rem; }
@@ -181,14 +181,14 @@
     cursor: pointer;
 }
 .job-card:hover {
-    border-color: #007185;
+    border-color: var(--accent-color);
     box-shadow: 0 2px 8px rgba(0,113,133,0.1);
 }
 .job-info h3 { font-size: 1rem; font-weight: 600; color: #0f1111; margin-bottom: 0.25rem; }
 .job-info p { font-size: 0.85rem; color: #565959; margin: 0; }
 .job-tag {
     background: #e7f4f5;
-    color: #007185;
+    color: var(--accent-color);
     padding: 4px 12px;
     border-radius: 100px;
     font-size: 0.78rem;
@@ -209,10 +209,10 @@
     padding: 1.25rem 1.5rem;
     transition: border-color 0.2s;
 }
-.press-card:hover { border-color: #007185; }
+.press-card:hover { border-color: var(--accent-color); }
 .press-date {
     font-size: 0.8rem;
-    color: #007185;
+    color: var(--accent-color);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -278,7 +278,7 @@
 .feature-list li:last-child { border-bottom: none; }
 .feature-list li .material-symbols-rounded {
     font-size: 22px;
-    color: #007185;
+    color: var(--accent-color);
     flex-shrink: 0;
     margin-top: 1px;
 }
@@ -345,7 +345,7 @@
     overflow: hidden;
     transition: border-color 0.2s;
 }
-.faq-item[open] { border-color: #007185; }
+.faq-item[open] { border-color: var(--accent-color); }
 .faq-item summary {
     padding: 1rem 1.25rem;
     font-weight: 600;
@@ -362,7 +362,7 @@
 .faq-item summary::after {
     content: '+';
     font-size: 1.5rem;
-    color: #007185;
+    color: var(--accent-color);
     font-weight: 300;
     transition: transform 0.2s;
 }
@@ -478,11 +478,11 @@
     text-align: center;
 }
 .pd-variant-pill:hover {
-    border-color: #007185 !important;
+    border-color: var(--accent-color) !important;
     background: #e7f4f5 !important;
 }
 .pd-variant-pill.selected {
-    border-color: #007185 !important;
+    border-color: var(--accent-color) !important;
     background: #e7f4f5 !important;
     box-shadow: 0 0 0 3px rgba(0,113,133,0.15) !important;
     font-weight: 600 !important;
@@ -501,11 +501,11 @@
     position: relative;
 }
 .pd-color-swatch:hover {
-    border-color: #007185;
+    border-color: var(--accent-color);
     transform: scale(1.1);
 }
 .pd-color-swatch.selected {
-    border-color: #007185;
+    border-color: var(--accent-color);
     box-shadow: 0 0 0 3px rgba(0,113,133,0.2);
     transform: scale(1.1);
 }

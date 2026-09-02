@@ -1,0 +1,544 @@
+/* ==========================================================================
+   MOBILE APP SHELL — Glomek
+   Turns the site into something that reads and behaves like the native app:
+   a bottom tab bar, bottom-sheet dialogs, sticky action bars, notch-safe
+   padding and touch feedback. Loaded last so it wins over responsive.css.
+   ========================================================================== */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --sheet-radius: 22px;
+  --ease-out-app: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Touch feel ─────────────────────────────────────────────
+   No 300ms delay, no grey flash, no accidental text selection
+   when tapping through a product list. */
+@media (hover: none) and (pointer: coarse) {
+
+  html,
+  body {
+    -webkit-tap-highlight-color: transparent;
+    /* No `overscroll-behavior-y: none` here. Because <html> carries
+       `overflow-x`, it is itself a scroll container; suppressing vertical
+       scroll chaining on top of that can leave the page unable to scroll at
+       all on touch devices. Inner scrollers (sheets, sidebars, rails) still
+       set `overscroll-behavior: contain`, which is where it actually helps. */
+  }
+
+  button,
+  a,
+  .product-card,
+  .pay-method,
+  .category-pill,
+  .cat-drawer-row {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Everything pressable dips slightly, the way a native row does. */
+  .product-card:active,
+  .jumia-card:active {
+    transform: scale(0.975);
+    transition: transform 0.1s ease;
+  }
+
+  .checkout-btn:active,
+  .icon-btn:active,
+  .qty-btn:active,
+  .chk-coupon-btn:active {
+    transform: scale(0.96);
+  }
+}
+
+/* Momentum scrolling inside every scrollable strip */
+.cart-items,
+.wishlist-items,
+.sheet-body,
+.category-list,
+.subcategory-list,
+.recently-viewed-scroll,
+.pd-related-scroll,
+.search-suggestions {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Horizontal strips snap like a native carousel */
+.category-list,
+.recently-viewed-scroll,
+.pd-related-scroll {
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.category-list::-webkit-scrollbar,
+.recently-viewed-scroll::-webkit-scrollbar,
+.pd-related-scroll::-webkit-scrollbar,
+.subcategory-list::-webkit-scrollbar {
+  display: none;
+}
+
+.category-list > *,
+.recently-viewed-scroll > *,
+.pd-related-scroll > * {
+  scroll-snap-align: start;
+}
+
+/* Background never scrolls behind an open sheet */
+body.overlay-open {
+  overflow: hidden;
+}
+
+/* ── Stacking order ─────────────────────────────────────────
+   pull-to-refresh < tab bar < install banner < modals
+   < cart overlay (100000) < cart / wishlist sidebar (100001).
+   The sidebars stay on top so the cart can be opened from inside
+   the product-detail screen. */
+.modal-overlay {
+  z-index: 99999;
+}
+
+/* ==========================================================================
+   BOTTOM SHEETS — modals rise from the bottom edge on phones
+   ========================================================================== */
+@media (max-width: 900px) {
+
+  .modal-overlay:not(.pd-overlay) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-overlay:not(.pd-overlay) .modal-content:not(.pd-modal-content) {
+    width: 100%;
+    max-width: 100% !important;
+    max-height: 92dvh;
+    margin: 0;
+    border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+    padding: 1.25rem 1.15rem calc(1.25rem + var(--safe-bottom));
+    transform: translateY(100%);
+    transition: transform 0.32s var(--ease-out-app);
+    display: flex;
+    flex-direction: column;
+    overscroll-behavior: contain;
+  }
+
+  .modal-overlay:not([hidden]):not(.pd-overlay) .modal-content:not(.pd-modal-content) {
+    transform: translateY(0);
+  }
+
+  /* Drag handle */
+  .sheet-handle {
+    display: block;
+    width: 42px;
+    height: 4px;
+    border-radius: 999px;
+    background: #d8d8d8;
+    margin: -4px auto 12px;
+    flex-shrink: 0;
+  }
+}
+
+.sheet-handle {
+  display: none;
+}
+
+/* Sheet layout: fixed head, scrolling body, pinned footer */
+.sheet-content {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  margin-bottom: 1.1rem;
+}
+
+.sheet-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.sheet-close {
+  position: static !important;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-color);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  margin: 0 -0.25rem;
+  padding: 0 0.25rem;
+}
+
+.sheet-footer {
+  flex-shrink: 0;
+  padding-top: 0.9rem;
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--glass-border);
+  background: var(--surface-color);
+}
+
+.sheet-footer .checkout-btn {
+  width: 100%;
+  min-height: 50px;
+  font-size: 1rem;
+  border-radius: 12px;
+}
+
+@media (max-width: 900px) {
+  .sheet-content {
+    max-height: 92dvh;
+  }
+
+  .sheet-body {
+    /* Keeps the last field clear of the sticky pay bar */
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* ==========================================================================
+   CART & WISHLIST — full-height app screens on phones
+   ========================================================================== */
+@media (max-width: 900px) {
+
+  .cart-sidebar,
+  .wishlist-sidebar {
+    max-width: 100%;
+    height: 100dvh;
+    border-left: none;
+    background: var(--surface-color);
+  }
+
+  .cart-header,
+  .wishlist-header {
+    padding-top: calc(1rem + var(--safe-top));
+    position: sticky;
+    top: 0;
+    background: var(--surface-color);
+    z-index: 2;
+  }
+
+  .cart-items,
+  .wishlist-items {
+    padding-bottom: 1.5rem;
+  }
+
+  .cart-footer {
+    padding-bottom: calc(1rem + var(--safe-bottom));
+    background: var(--surface-color);
+    border-top: 1px solid var(--glass-border);
+  }
+
+  .cart-footer .checkout-btn {
+    min-height: 50px;
+    border-radius: 12px;
+    font-size: 1rem;
+  }
+
+  .qty-btn,
+  .delete-btn {
+    min-width: 34px;
+    min-height: 34px;
+  }
+}
+
+/* ==========================================================================
+   PRODUCT DETAIL — reads as a pushed screen, not a dialog
+   ========================================================================== */
+@media (max-width: 900px) {
+
+  .pd-modal-content {
+    padding-top: var(--safe-top) !important;
+  }
+
+  .pd-close,
+  .pd-cart-icon-btn,
+  .pd-share-btn {
+    top: calc(10px + var(--safe-top)) !important;
+  }
+
+  .pd-share-btn {
+    right: 106px !important;
+    width: 38px;
+    height: 38px;
+  }
+
+  /* The fixed buy bar sits above the home indicator */
+  .pd-buybox {
+    padding-bottom: calc(0.75rem + var(--safe-bottom)) !important;
+    z-index: 100002 !important;
+  }
+
+  .pd-modal-content {
+    padding-bottom: calc(78px + var(--safe-bottom)) !important;
+  }
+
+  .pd-buybox .pd-add-to-cart-btn,
+  .pd-buybox .pd-buy-now-btn {
+    border-radius: 12px;
+    min-height: 48px;
+  }
+}
+
+/* ==========================================================================
+   HEADER — collapses out of the way while scrolling down
+   ========================================================================== */
+@media (max-width: 900px) {
+
+  .navbar {
+    padding-top: var(--safe-top);
+    transition: transform 0.3s var(--ease-out-app);
+    /* No permanent will-change here: the header transforms only while it is
+       collapsing, and holding a compositor layer for a sticky element that is
+       repainted during scroll costs more than it saves. */
+  }
+
+  body.nav-hidden .navbar {
+    transform: translateY(-100%);
+  }
+
+  /* Bigger tap targets in the header */
+  .icon-btn {
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .search-input {
+    font-size: 16px; /* stops iOS from zooming on focus */
+  }
+}
+
+/* Any full-width input must be >=16px on iOS or the page zooms in on focus */
+@media (max-width: 900px) {
+
+  .form-input,
+  .sort-select,
+  .price-range-input,
+  textarea.form-input {
+    font-size: 16px;
+  }
+
+  .form-input {
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+  }
+}
+
+/* ==========================================================================
+   TOASTS — rise from the bottom edge, the way app snackbars do
+   ========================================================================== */
+@media (max-width: 900px) {
+
+  .toast-container {
+    top: auto !important;
+    bottom: calc(var(--safe-bottom) + 14px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    align-items: stretch;
+    z-index: 100003 !important;
+  }
+
+  .toast {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    border-radius: 12px;
+    transform: translateY(120%);
+    animation: toastRiseIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .toast.removing {
+    animation: toastSinkOut 0.28s ease-in forwards;
+  }
+
+  @keyframes toastRiseIn {
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  @keyframes toastSinkOut {
+    to { transform: translateY(120%); opacity: 0; }
+  }
+
+  /* The offline strip also clears the tab bar */
+  .offline-banner {
+    padding-top: calc(8px + var(--safe-top));
+  }
+}
+
+/* ==========================================================================
+   SORT / FILTER — sticks under the header while browsing a category
+   ========================================================================== */
+@media (max-width: 900px) {
+
+  /* The sort/price row scrolls away with the page. It used to be sticky here,
+     and modern.css later gives that row a transparent background — so it hung
+     over the product grid with the cards showing straight through it. */
+
+  /* Grid rows keep an even rhythm on narrow screens */
+  .jumia-container .product-grid {
+    gap: 8px;
+  }
+
+  .jumia-card {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+}
+
+/* ==========================================================================
+   PULL TO REFRESH
+   ========================================================================== */
+.ptr-indicator {
+  position: fixed;
+  top: calc(var(--safe-top) + 8px);
+  left: 50%;
+  z-index: 99996;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  border-radius: 50%;
+  background: var(--surface-color);
+  box-shadow: var(--shadow-md);
+  color: var(--accent-color);
+  opacity: 0;
+  transform: translateY(-12px) scale(0.8);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.ptr-indicator .material-symbols-rounded {
+  font-size: 20px;
+}
+
+.ptr-indicator.armed .material-symbols-rounded {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.ptr-indicator.spinning .material-symbols-rounded {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ==========================================================================
+   LAYOUT STABILITY (CLS)
+   The loading skeleton must be the same height as the card that replaces it,
+   at every breakpoint, or the grid jumps when products arrive.
+   Mirrors .jumia-img-container in responsive.css.
+   ========================================================================== */
+@media (max-width: 768px) {
+  .shimmer-img { height: 130px; }
+}
+
+@media (max-width: 600px) {
+  .shimmer-img { height: 120px; }
+}
+
+@media (max-width: 400px) {
+  .shimmer-img { height: 110px; }
+}
+
+@media (max-width: 360px) {
+  .shimmer-img { height: 95px; }
+}
+
+/* The hero poster needs nothing here: .premium-hero .poster-container already
+   sets an explicit height at every breakpoint (420/220/180/160px) and the
+   shimmer fills it at 100%, so that swap is already shift-free. */
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+/* A visible focus ring for keyboard users, invisible to mouse users.
+   :focus-visible means this never shows on a tap or click. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--accent-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Inputs get the ring on the border instead, so it hugs the field */
+.form-input:focus-visible {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(246, 139, 30, 0.28);
+}
+
+/* Skip link — first stop for keyboard and screen-reader users */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 100010;
+  padding: 10px 18px;
+  border-radius: 0 0 8px 8px;
+  background: var(--accent-color);
+  color: #fff;
+  font-weight: 700;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Available to screen readers, invisible on screen */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Reduced motion ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+
+  .cat-drawer,
+  .drawer-scrim,
+  .navbar,
+  .modal-content,
+  .ptr-indicator {
+    transition: none !important;
+  }
+
+  .product-card:active {
+    transform: none !important;
+  }
+}

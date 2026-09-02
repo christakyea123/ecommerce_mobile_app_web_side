@@ -3,17 +3,24 @@
    ========================================================================== */
 
 /* ── Cart Overlay ──────────────────────────────────────── */
+/* backdrop-filter is applied only while the overlay is actually visible.
+   Left on permanently it keeps a full-screen blur layer composited behind
+   every page, which costs GPU work on every scroll frame for nothing. */
 .cart-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
   z-index: 100000 !important;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
-.cart-overlay.active { opacity: 1; pointer-events: auto; }
+.cart-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
 
 /* ── Cart Sidebar ──────────────────────────────────────── */
 .cart-sidebar {
@@ -23,9 +30,10 @@
   width: 100%;
   max-width: 480px;
   height: 100vh;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
+  /* Opaque while closed: a translucent panel with a 25px backdrop blur sitting
+     off-screen still gets composited on every frame. The blur is added back
+     in the .open rule below. */
+  background: #fff;
   border-left: 1px solid var(--glass-border);
   box-shadow: var(--shadow-lg);
   z-index: 100001 !important;
@@ -34,7 +42,12 @@
   transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   border-radius: 0;
 }
-.cart-sidebar.open { right: 0; }
+.cart-sidebar.open {
+  right: 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+}
 
 .cart-header {
   padding: 1.5rem;
@@ -185,9 +198,9 @@
 .checkout-btn {
   width: 100%;
   padding: 1rem 2rem;
-  background: #FFD814;
+  background: #f68b1e;
   color: #111;
-  border: 1px solid #FCD200;
+  border: 1px solid #e07b19;
   border-radius: 8px;
   font-family: var(--font-sans);
   font-size: 1.1rem;
@@ -196,5 +209,5 @@
   transition: all 0.2s;
   box-shadow: 0 2px 5px rgba(213,217,217,0.5);
 }
-.checkout-btn:hover:not(:disabled) { background: #F7CA00; }
+.checkout-btn:hover:not(:disabled) { background: #e07b19; }
 .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }

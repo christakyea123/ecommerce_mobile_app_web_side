@@ -10,7 +10,9 @@
   background: #131921;
   border: none;
   color: #ffffff;
-  transition: all 0.3s ease;
+  /* Named properties only: `transition: all` makes the browser watch every
+     animatable property on a sticky element that is repainted while scrolling. */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .nav-container {
@@ -236,21 +238,36 @@
   opacity: 1;
 }
 
+/* Animated with transform rather than `left`: an infinite loop on a layout
+   property re-runs layout every frame for as long as a search is in flight,
+   which is exactly when the main thread is already busy rendering results. */
 .search-progress-bar::after {
   content: '';
   position: absolute;
   top: 0;
-  left: -40%;
+  left: 0;
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, var(--accent-color), #FFD814, var(--accent-color), transparent);
+  background: linear-gradient(90deg, transparent, var(--accent-color), #f68b1e, var(--accent-color), transparent);
   border-radius: 2px;
+  transform: translateX(-100%);
   animation: searchProgressSlide 1.2s ease-in-out infinite;
+  animation-play-state: paused; /* costs nothing while no search is running */
+}
+
+/* Only animate — and only hold a layer — while a search is actually in flight. */
+.search-progress-bar.active::after {
+  will-change: transform;
+  animation-play-state: running;
 }
 
 @keyframes searchProgressSlide {
-  0% { left: -40%; }
-  100% { left: 100%; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-progress-bar::after { animation: none; }
 }
 
 
@@ -279,21 +296,29 @@
   transform: none;
 }
 
-.cart-badge {
+/* Count badges must read as one family. The cart badge used to be 22px orange
+   with a white ring while the wishlist badge next to it was 18px red with a
+   dark ring — side by side in the same header, they looked like two unrelated
+   controls. Both now match each other and the bottom tab bar. */
+.cart-badge,
+.wishlist-badge {
   position: absolute;
-  top: 0;
-  right: 0;
-  background: var(--accent-color);
-  color: white;
-  font-size: 0.75rem;
+  top: -4px;
+  right: -4px;
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  font-size: 0.7rem;
   font-weight: 700;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  line-height: 1;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #fff;
+  border: 2px solid #131921;
+  box-sizing: content-box;
   animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -303,7 +328,7 @@
 
 /* ── Category Discovery Nav ────────────────────────────── */
 .category-nav-wrapper {
-  background: #232F3E;
+  background: #131921;
   border: none;
   box-shadow: none;
 }

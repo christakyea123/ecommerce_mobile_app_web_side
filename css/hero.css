@@ -48,14 +48,28 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
-  transform: scale(1);
+  /* translateZ promotes the image to its own compositor layer, so the 8s Ken
+     Burns zoom below is a GPU transform instead of the browser re-rasterising
+     a large photo on every frame for eight seconds straight — which competed
+     with scrolling for the main thread. */
+  transform: translateZ(0) scale(1);
   transition: transform 8s ease-out;
+  backface-visibility: hidden;
 }
 
 /* Ken Burns subtle zoom effect on active slide */
 .poster-slide[style*="opacity: 1"] .poster-image,
 .poster-slide[style*="opacity:1"] .poster-image {
-  transform: scale(1.05);
+  transform: translateZ(0) scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poster-slide .poster-image,
+  .poster-slide[style*="opacity: 1"] .poster-image,
+  .poster-slide[style*="opacity:1"] .poster-image {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* ── Overlay — Multi-layer cinematic gradient ──────────── */
