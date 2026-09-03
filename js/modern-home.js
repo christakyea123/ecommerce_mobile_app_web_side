@@ -29,7 +29,7 @@
             <div class="gl-call-strip" id="glCallStrip">
                 <span class="material-symbols-rounded">support_agent</span>
                 <span>Call to Order:</span>
-                <a href="tel:+233543791625">+233 54 379 1625</a>
+                <a href="tel:+233537269462">+233 53 726 9462</a>
             </div>
 
             <section class="gl-section tinted" id="glCategoryRail" hidden>
@@ -306,7 +306,7 @@
             });
             if (searching) {
                 // Force a redraw when the search is cleared.
-                lastSignature.cats = lastSignature.flash = lastSignature.reco = ' searching';
+                lastSignature.cats = lastSignature.flash = lastSignature.reco = 'searching';
                 return;
             }
 

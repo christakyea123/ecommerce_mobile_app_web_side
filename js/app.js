@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    initApp();
+    // initApp() is async and was called bare, so anything it threw became an
+    // unhandled rejection: silent in production, and with no sign of which
+    // step gave up. The rest of the boot must still run either way.
+    initApp().catch(err => console.error('Glomek failed to start:', err));
     setupAccessibility();
     setupOfflineDetection();
 });
@@ -88,6 +91,16 @@ function listingUrl() {
     if (state.selectedCategoryId) p.set('cat', state.selectedCategoryId);
     if (state.selectedSubCategoryId) p.set('sub', state.selectedSubCategoryId);
     if (state.currentPage > 1) p.set('page', String(state.currentPage));
+
+    // A shared ?product= that has not been opened yet has to survive this.
+    // The query is rebuilt from q/cat/sub/page alone, so any other parameter
+    // was silently dropped the first time a listing synced — which on this
+    // page happens during the very first load. The id vanished from the
+    // address bar mid-boot, and a refresh could no longer retry it.
+    // openSharedProductLink() removes it itself once the sheet is actually up.
+    const pendingProduct = new URLSearchParams(window.location.search).get('product');
+    if (pendingProduct) p.set('product', pendingProduct);
+
     const qs = p.toString();
     return window.location.pathname + (qs ? `?${qs}` : '');
 }
@@ -134,35 +147,10 @@ function currentListingLabel() {
     return null;
 }
 
-/**
- * Turns a product title into something worth suggesting.
- *
- * Titles here are catalogue strings — "Samsung Galaxy A51 SM-A515 16.5 cm
- * (6.5") 4G USB Type-C 4GB 128GB Blue". Offering that as a search suggestion
- * fills the dropdown with unreadable text, and picking it searched the entire
- * title, which matches that one product or nothing at all.
- *
- * Keep the identifying words at the front and drop the spec tail.
- */
-function toSearchPhrase(name) {
-    if (!name) return '';
-    const head = String(name)
-        // Spec noise almost always begins at one of these.
-        .split(/[(\[|,–—:]/)[0]
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    // Take whole words while they fit. A fixed word count cuts phrases like
-    // "HP Campus XL Tie | Dye Backpack" in half; a fixed character count cuts
-    // mid-word. Growing word by word keeps the phrase readable.
-    const words = head.split(' ');
-    let phrase = '';
-    for (const w of words) {
-        const next = phrase ? `${phrase} ${w}` : w;
-        if (next.length > 32 || phrase.split(' ').length >= 6) break;
-        phrase = next;
-    }
-    return (phrase || words[0] || '').trim();
+/** localStorage can hold anything; a bad entry must not kill the script. */
+function readStoredUser() {
+    try { return JSON.parse(localStorage.getItem('glomek_user') || 'null'); }
+    catch { return null; }
 }
 
 function escapeHtml(unsafe) {
@@ -251,63 +239,211 @@ function showToast(message, type = 'info') {
     }, 4500);
 }
 
+/**
+ * The product id from a shared link, read once while the script parses.
+ *
+ * Read here rather than later because everything that follows can rewrite the
+ * address bar — syncListingUrl() rebuilds it from q/cat/sub/page alone and
+ * would drop ?product= on the way past.
+ */
+const SHARED_PRODUCT_ID = (() => {
+    try { return new URLSearchParams(window.location.search).get('product'); }
+    catch { return null; }
+})();
+
 async function initApp() {
     setupEventListeners();
     // Read ?q= / ?cat= / ?page= before the first fetch, so a shared or
     // refreshed link lands on exactly the results it describes.
     applyListingFromUrl();
+
+    // A shared product link is the only reason this visitor is here, so it is
+    // opened FIRST and independently of everything else.
+    //
+    // It used to be the last statement in this function, behind
+    // `await loadInitialData()`. That made it hostage to the entire homepage
+    // loading first: any throw in categories, posters, brands or the product
+    // grid meant initApp() rejected and this line was simply never reached —
+    // the visitor landed on the homepage with no product and no error. A
+    // phone on mobile data hits that far more often than a desktop on wifi,
+    // which is exactly the difference reported: the link opens on desktop and
+    // just shows the site on a phone.
+    //
+    // Nothing here needs the catalogue: openProductDetails() falls back to
+    // fetching the one product by id, which is the right data anyway.
+    const sharedProduct = openSharedProductLink();
+
     await loadInitialData();
-    renderGoogleButton();
-    // Finish any order the customer left mid-payment on Paystack's hosted page.
-    resumePendingPayment();
-    openSharedProductLink();
+    // The Google button is deliberately NOT rendered here — the auth modal is
+    // still [hidden] at this point and Google cannot size a button into a box
+    // that measures 0x0. openModal() draws it instead.
+    // Finish any order the customer left mid-payment on Paystack's hosted page,
+    // then re-attempt anything that was paid for but never saved.
+    resumePendingPayment()
+        .catch(err => console.error('Resuming pending payment failed:', err))
+        .then(retryParkedOrders)
+        .then(preferCookieAuth);
+
+    await sharedProduct;
 }
 
-/** Opens the product behind a shared ?product=<id> link. */
-function openSharedProductLink() {
-    const id = new URLSearchParams(window.location.search).get('product');
+/**
+ * Opens the product behind a shared ?product=<id> link.
+ *
+ * The address is only cleaned once the sheet is actually up. It used to be
+ * cleaned first, which threw the id away before it had been used — so if the
+ * fetch failed (a phone losing its connection mid-request), the id was gone
+ * and even a refresh could not recover it. Now a failed open leaves the link
+ * intact and pulling to refresh tries again.
+ */
+async function openSharedProductLink() {
+    const id = SHARED_PRODUCT_ID;
     if (!id) return;
 
-    // Clean the URL so a refresh doesn't reopen the sheet.
+    let opened = false;
+    try {
+        opened = await openProductDetails(id);
+    } catch (err) {
+        console.error('Could not open shared product ' + id + ':', err);
+    }
+
+    if (!opened) return; // keep ?product= so a refresh retries
+
+    // Clean the URL so a refresh does not reopen the sheet.
     const clean = window.location.pathname + window.location.hash;
-    history.replaceState(null, '', clean);
-    openProductDetails(id);
+    try { history.replaceState(null, '', clean); } catch { /* history unavailable */ }
 }
 
-function renderGoogleButton() {
-    const container = document.getElementById("googleSignInBtnContainer");
-    if (!container) return;
+/**
+ * Resolves once Google Identity Services has actually parsed.
+ *
+ * The GSI tag is <script async defer>, so window.google is not there on a
+ * predictable tick — it lost the race against initApp() on any connection
+ * where the Google CDN was slower than our own JSON, and the code then took
+ * the "no Google available" branch and never looked again.
+ */
+function whenGoogleReady(timeoutMs = 8000) {
+    return new Promise((resolve) => {
+        const ready = () => !!(window.google && window.google.accounts && window.google.accounts.id);
+        if (ready()) return resolve(true);
 
-    if (window.google && window.google.accounts && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
+        const started = Date.now();
+        const timer = setInterval(() => {
+            if (ready()) { clearInterval(timer); resolve(true); }
+            else if (Date.now() - started > timeoutMs) { clearInterval(timer); resolve(false); }
+        }, 100);
+    });
+}
+
+// Rendered once per page load. `pending` covers the window between asking
+// Google to draw the button and finding out whether it did — without it, a
+// customer who closes and reopens the modal inside three seconds starts a
+// second render into the same container.
+let googleButtonRendered = false;
+let googleButtonPending = false;
+
+/**
+ * Draws the real Google Sign-In button into the auth modal.
+ *
+ * This must run while the modal is OPEN, which is why openModal() calls it and
+ * initApp() no longer does. Google renders the button into an iframe and sizes
+ * it from the container's box; #googleSignInBtnContainer lives inside
+ * #authModal, which carries [hidden] until the customer asks to log in. Called
+ * at page load it therefore measured 0x0 — so the "did the button render?"
+ * check (container.offsetHeight === 0) was true every single time, and after
+ * 2.5s the working Google button was thrown away and replaced by the fallback.
+ * That is what "sign in with Google stopped working" looked like from outside.
+ */
+async function renderGoogleButton() {
+    const container = document.getElementById("googleSignInBtnContainer");
+    if (!container || googleButtonRendered || googleButtonPending) return;
+    googleButtonPending = true;
+
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
+        return renderGoogleUnavailable(container, 'no Client ID is configured');
+    }
+
+    // A modest placeholder so the modal does not jump when the button lands.
+    container.style.minHeight = '44px';
+
+    const available = await whenGoogleReady();
+    if (!available) {
+        return renderGoogleUnavailable(container, 'the Google script did not load');
+    }
+
+    try {
         window.google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
-            callback: handleGoogleCredentialResponse
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            // Chrome is removing third-party cookies, which is what the old
+            // GSI iframe relied on. FedCM is the supported path now.
+            use_fedcm_for_prompt: true,
+            itp_support: true
         });
-        window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", type: "standard" });
 
-        // Google renders into an iframe. If the current origin is not on the
-        // client ID's authorised list, GSI logs and gives up, leaving an empty
-        // box and no way to sign in. Detect that and fall back.
-        setTimeout(() => {
-            if (container.childElementCount === 0 || container.offsetHeight === 0) {
-                console.warn(
-                    'GLOMEK: the Google button did not render. Add "' + window.location.origin +
-                    '" to Authorised JavaScript origins for this OAuth client ID in Google Cloud Console.'
-                );
-                renderGoogleFallbackButton(container);
-            }
-        }, 2500);
-    } else {
-        renderGoogleFallbackButton(container);
+        // Google reads the width off the container, which is only measurable
+        // now that the modal is open. Cap it at Google's 400px maximum.
+        const width = Math.min(400, Math.max(200, Math.round(container.getBoundingClientRect().width) || 320));
+
+        window.google.accounts.id.renderButton(container, {
+            theme: 'outline',
+            size: 'large',
+            type: 'standard',
+            shape: 'rectangular',
+            text: 'signin_with',
+            logo_alignment: 'left',
+            width
+        });
+    } catch (err) {
+        console.error('GLOMEK: google.accounts.id failed to initialise.', err);
+        return renderGoogleUnavailable(container, 'Google rejected this client');
     }
+
+    // Only now — with the modal open and the container measurable — is a zero
+    // height real. It means the origin is missing from the OAuth client's
+    // authorised list, which is a configuration problem, not a runtime one.
+    setTimeout(() => {
+        googleButtonPending = false;
+
+        // If the customer closed the modal in the meantime the container is
+        // display:none again and measures 0 — which is exactly the mistake
+        // this whole function exists to avoid. Leave the button alone and let
+        // the next open re-check it.
+        const modal = document.getElementById('authModal');
+        if (modal && modal.hidden) return;
+
+        if (container.childElementCount === 0 || container.offsetHeight === 0) {
+            console.warn(
+                'GLOMEK: the Google button did not render. Add "' + window.location.origin +
+                '" to Authorised JavaScript origins for OAuth client ' + GOOGLE_CLIENT_ID +
+                ' in Google Cloud Console.'
+            );
+            renderGoogleUnavailable(container, 'this site is not an authorised origin for the OAuth client');
+        } else {
+            googleButtonRendered = true;
+        }
+    }, 3000);
 }
 
-function renderGoogleFallbackButton(container) {
+/**
+ * What the modal shows when Google genuinely cannot be offered.
+ *
+ * This used to be a button that called prompt() for an email address and
+ * logged the visitor in as whoever they typed. That is not a fallback for
+ * Google Sign-In — it is a way to sign in as any customer on the site by
+ * knowing their email, so it is gone. Email and password are right above it.
+ */
+function renderGoogleUnavailable(container, reason) {
+    googleButtonPending = false;
+    console.warn('GLOMEK: Google Sign-In unavailable — ' + reason + '.');
     container.innerHTML = `
-        <button type="button" class="google-signin-btn" onclick="handleFallbackGoogleLogin()">
-            <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-            <span>Sign in with Google</span>
-        </button>
+        <p class="google-unavailable" role="status">
+            <span class="material-symbols-rounded">info</span>
+            Google Sign-In isn't available right now. Please use your email and
+            password above.
+        </p>
     `;
 }
 
@@ -323,14 +459,6 @@ async function handleGoogleCredentialResponse(response) {
     }
 }
 
-window.handleFallbackGoogleLogin = function () {
-    // Prompt-based fallback when no Client ID is configured
-    const email = prompt('Enter your Google email address:');
-    if (!email || !email.includes('@')) return showToast('Please enter a valid email.', 'warning');
-    const name = email.split('@')[0];
-    performGoogleLogin(email, name);
-}
-
 async function performGoogleLogin(email, name) {
     const btn = document.getElementById('authSubmitBtn');
     if (btn) { btn.textContent = "Please wait..."; btn.disabled = true; }
@@ -338,16 +466,24 @@ async function performGoogleLogin(email, name) {
         const res = await ApiService.googleLogin(email, name);
         if (res && res.success) {
             currentUser = res.data;
-            if (res.token) userToken = res.token; // keep in memory only, cookie is set by server
+            if (res.token) setUserToken(res.token);
             localStorage.setItem('glomek_user', JSON.stringify(currentUser));
             closeModal('authModal');
             updateUserUI();
-            state.recommendations = await ApiService.fetchRecommendations(currentUser._id);
+            preferCookieAuth();
             showToast("Google login successful!", "success");
+
+            // Recommendations are a nicety. They used to sit inside the same
+            // try block, so a hiccup fetching them told a customer who was
+            // already signed in that their login had failed.
+            try {
+                state.recommendations = await ApiService.fetchRecommendations(currentUser._id);
+            } catch { /* the session is valid either way */ }
         } else {
-            showToast(res.message || "Google Login failed.", "error");
+            showToast((res && res.message) || "Google Login failed.", "error");
         }
     } catch (err) {
+        console.error('Google login error:', err);
         showToast("Unable to complete Google Auth.", "error");
     }
     if (btn) { btn.textContent = "Login"; btn.disabled = false; }
@@ -397,38 +533,26 @@ function setupEventListeners() {
             suggestions.push({ type: 'history', text: h, icon: 'history' });
         });
 
+        // 2) Category matches. Categories are navigation, not catalogue — the
+        //    same handful of names is already printed on the home page, so
+        //    offering them here gives nothing away about the product database.
         if (q.length >= 2) {
-            // 2) Category matches
             state.categories.forEach(cat => {
-                if (cat.name && cat.name.toLowerCase().includes(q) && suggestions.length < 12) {
+                if (cat.name && cat.name.toLowerCase().includes(q) && suggestions.length < 10) {
                     // Avoid duplicates
                     if (!suggestions.some(s => s.text.toLowerCase() === cat.name.toLowerCase())) {
                         suggestions.push({ type: 'category', text: cat.name, icon: 'category', category: 'in Categories' });
                     }
                 }
             });
-
-            // 3) Product matches, offered as a short searchable phrase.
-            const seenNames = new Set();
-            const allProds = state.allProducts || state.products || [];
-            allProds.forEach(p => {
-                if (suggestions.length >= 12) return;
-                if (p.name && p.name.toLowerCase().includes(q)) {
-                    const phrase = toSearchPhrase(p.name);
-                    if (!phrase) return;
-                    const key = phrase.toLowerCase();
-                    if (!seenNames.has(key) && !suggestions.some(s => s.text.toLowerCase() === key)) {
-                        seenNames.add(key);
-                        const catName = p.proCategoryId ? (p.proCategoryId.name || '') : '';
-                        // text and fullText are the same phrase on purpose:
-                        // picking a suggestion must run a *query*, not paste a
-                        // whole product title into the search box.
-                        suggestions.push({ type: 'product', text: phrase, fullText: phrase, icon: 'search', category: catName ? `in ${catName}` : '' });
-                    }
-                }
-            });
         }
 
+        // Deliberately no product suggestions. Typing must not turn the search
+        // box into a live window onto the catalogue: "Sam" used to list
+        // "Samsung Galaxy A51 SM-A515 16.5", which reads product names straight
+        // out of the database before the customer has asked for anything.
+        // Jumia works the other way round — you type, you press search, and the
+        // results page is the first thing that names a product. So does this.
         return suggestions;
     }
 
@@ -453,8 +577,6 @@ function setupEventListeners() {
                     html += `<div class="search-suggestions-divider">Recent Searches</div>`;
                 } else if (s.type === 'category') {
                     html += `<div class="search-suggestions-divider">Categories</div>`;
-                } else if (s.type === 'product' && lastType !== 'product') {
-                    html += `<div class="search-suggestions-divider">Products</div>`;
                 }
                 lastType = s.type;
             }
@@ -471,8 +593,8 @@ function setupEventListeners() {
                 : `<span class="suggestion-fill"><span class="material-symbols-rounded" style="font-size:16px;">north_west</span></span>`;
 
             html += `
-                <div class="search-suggestion-item" data-index="${idx}" data-text="${escapeHtml(s.fullText || s.text)}"
-                     onclick="window._selectSuggestion('${escapeHtml(s.fullText || s.text)}')">
+                <div class="search-suggestion-item" data-index="${idx}" data-text="${escapeHtml(s.text)}"
+                     onclick="window._selectSuggestion('${escapeHtml(s.text)}')">
                     <span class="suggestion-icon material-symbols-rounded">${s.icon}</span>
                     <span class="suggestion-text">${displayText}</span>
                     ${s.category ? `<span class="suggestion-category">${escapeHtml(s.category)}</span>` : ''}
@@ -839,7 +961,13 @@ async function loadProductsInner(isPagination = false) {
     filteredList = applySorting(filteredList, state.sortBy);
 
     state.products = filteredList;
-    state.hasMore = fetchedProducts.length >= 50;
+    // Against PAGE_SIZE, not a hardcoded 50. PAGE_SIZE is 40, so a full page
+    // returns 40 and "40 >= 50" was false every single time — hasMore was
+    // stuck false after the first load. Pagination hid it, because the
+    // numbered pages do not consult hasMore; the infinite-scroll fallback
+    // does, and that path (used when the server cannot filter by category)
+    // could never load a second page.
+    state.hasMore = fetchedProducts.length >= PAGE_SIZE && (state.currentPage * PAGE_SIZE) < (state.totalResults || 0);
 
     // Update product count text
     updateProductCount();
@@ -1460,7 +1588,7 @@ function updateCartUI() {
                         <div class="cart-item-actions">
                             <div class="qty-controls">
                                 <button class="qty-btn" onclick="updateQty('${item.productId}', -1)" aria-label="Decrease quantity of ${escapeHtml(item.name)}"><span class="material-symbols-rounded" style="font-size:16px;">remove</span></button>
-                                <input type="number" class="qty-input" value="${item.quantity}" min="1" aria-label="Quantity of ${escapeHtml(item.name)}" onchange="setQty('${item.productId}', this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
+                                <input type="number" class="qty-input" name="qty-${item.productId}" value="${item.quantity}" min="1" autocomplete="off" aria-label="Quantity of ${escapeHtml(item.name)}" onchange="setQty('${item.productId}', this.value)" onkeydown="if(event.key==='Enter'){this.blur()}">
                                 <button class="qty-btn" onclick="updateQty('${item.productId}', 1)" aria-label="Increase quantity of ${escapeHtml(item.name)}"><span class="material-symbols-rounded" style="font-size:16px;">add</span></button>
                             </div>
                             <button class="delete-btn" onclick="deleteFromCart('${item.productId}')" title="Remove" aria-label="Remove ${escapeHtml(item.name)} from cart"><span class="material-symbols-rounded">delete</span></button>
@@ -1548,11 +1676,79 @@ function renderShimmerGrid() {
 }
 
 // ====== AUTHENTICATION & PROFILE ====== //
-// JWT token is stored in HTTP-only cookie by the server — we only keep a memory reference
-// for the Authorization header fallback (used by mobile). Never persisted to localStorage.
-let userToken = null;
-let currentUser = JSON.parse(localStorage.getItem('glomek_user'));
+/**
+ * Where the JWT lives, and why.
+ *
+ * The API authenticates on the Authorization header, not on the cookie — an
+ * unauthenticated POST /orders answers {"message":"No token provided"}. So the
+ * token has to be reachable from JS on every page and after every navigation,
+ * not just for as long as one document stays loaded.
+ *
+ * It used to be a plain variable, which quietly broke the two journeys that
+ * leave the page:
+ *
+ *   • pages/orders.html is a different document, so it started with an empty
+ *     variable. It looked for a `glomek_token` cookie instead — but that
+ *     cookie belongs to api.glomek.com, and document.cookie on glomek.com can
+ *     never see another domain's cookies. The gate therefore failed every
+ *     time, and "Your Orders" from the menu always said "log in on the main
+ *     store". Only the profile modal on index.html worked, because that one
+ *     still had the variable in memory.
+ *
+ *   • The Paystack hosted-page redirect reloads the page on the way back, so
+ *     the variable was gone by the time resumePendingPayment() ran.
+ *     verifyPaystackPayment() needs no auth and passed; createOrder() sent no
+ *     token and got a 401. Paystack had already taken the money. That is the
+ *     "Payment received but the order failed to save" the customer sees.
+ *
+ * sessionStorage is the narrowest place that survives both: scoped to this one
+ * tab and this origin, and gone when the tab closes. It is still XSS-readable,
+ * but so was the variable — the server hands the token to JS in the login
+ * response body and the app sends it as a Bearer header on every authenticated
+ * call, so script running on the page could already reach it.
+ */
+const TOKEN_KEY = 'glomek_token';
+
+function readStoredToken() {
+    try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+function setUserToken(token) {
+    userToken = token || null;
+    try {
+        if (token) sessionStorage.setItem(TOKEN_KEY, token);
+        else sessionStorage.removeItem(TOKEN_KEY);
+    } catch { /* private mode: the in-memory copy still serves this page */ }
+}
+
+let userToken = readStoredToken();
+let currentUser = readStoredUser();
 let isLoginMode = true;
+
+/**
+ * Prefer the HttpOnly cookie, and prove it before trusting it.
+ *
+ * The token in sessionStorage exists only because the app could not tell
+ * whether the cookie authenticates. It can: one request with the Authorization
+ * header deliberately withheld answers the question. If the cookie carried it,
+ * the JS copy is redundant and is thrown away — leaving the JWT reachable only
+ * by the server, which is the whole point of setting it HttpOnly.
+ *
+ * If the cookie does NOT carry it (never set, wrong attributes, blocked), the
+ * token stays and checkout keeps working. This can make things safer; it can
+ * never make them broken.
+ *
+ * Runs once: after it succeeds there is no token left, and the guard below
+ * stops it running again.
+ */
+async function preferCookieAuth() {
+    if (!currentUser || !currentUser._id || !userToken) return;
+
+    if (await ApiService.cookieAuthWorks(currentUser._id)) {
+        setUserToken(null);
+        console.info("GLOMEK: HttpOnly cookie authenticates; JS token discarded.");
+    }
+}
 
 function updateUserUI() {
     const userBtn = document.querySelector('.user-btn');
@@ -1605,11 +1801,12 @@ window.handleAuthSubmit = async function (e) {
         if (res.success) {
             showToast(res.message, "success");
             if (res.token) {
-                userToken = res.token; // keep in memory only, cookie is set by server
+                setUserToken(res.token);
                 currentUser = res.data;
                 localStorage.setItem('glomek_user', JSON.stringify(currentUser));
                 closeModal('authModal');
                 updateUserUI();
+                preferCookieAuth();
                 state.recommendations = await ApiService.fetchRecommendations(currentUser._id);
             } else if (!isLoginMode) {
                 // Registration success — switch to login
@@ -1632,7 +1829,7 @@ window.handleAuthSubmit = async function (e) {
 window.logout = async function () {
     await ApiService.logout(); // server clears the HTTP-only cookie
     currentUser = null;
-    userToken = null;
+    setUserToken(null);
     localStorage.removeItem('glomek_user');
     closeModal('profileModal');
     showToast("Successfully logged out.", "success");
@@ -1644,7 +1841,11 @@ async function loadOrderHistory() {
 
     if (!currentUser || !currentUser._id) return;
 
-    const orders = await ApiService.fetchUserOrders(currentUser._id, userToken);
+    const { orders, unauthorized } = await ApiService.fetchUserOrders(currentUser._id, userToken);
+    if (unauthorized) {
+        historyDiv.innerHTML = '<p style="color:var(--text-secondary)">Your session has expired. Please log in again.</p>';
+        return;
+    }
     if (orders.length === 0) {
         historyDiv.innerHTML = '<p style="color:var(--text-secondary)">No recent orders found.</p>';
         return;
@@ -2029,11 +2230,19 @@ async function finalisePaidOrder(orderData, reference) {
         return;
     }
 
-    setPayBtnBusy(true, 'Placing your order…');
+    // Past this line the customer has been debited. The order is written to
+    // localStorage *before* the first save attempt, so that whatever the API
+    // does next — 401, 500, dropped connection, closed tab — the paid order
+    // still exists somewhere and can be retried. It used to live only in the
+    // text of an error toast.
     const payload = { ...orderData, paymentId: reference };
+    parkPaidOrder(payload, reference);
+
+    setPayBtnBusy(true, 'Placing your order…');
     const orderRes = await ApiService.createOrder(payload, userToken);
 
     if (orderRes && orderRes.success) {
+        clearParkedOrder(reference);
         showToast("Payment successful! Your order is on its way.", "success");
         if (window.haptic) window.haptic([12, 40, 12]);
         showReceipt(payload, orderRes);
@@ -2042,9 +2251,97 @@ async function finalisePaidOrder(orderData, reference) {
         updateCartUI();
         closeModal('checkoutModal');
     } else {
-        showToast("Payment received but the order failed to save. Contact support with reference " + reference + ".", "error");
+        // The server's own reason used to be thrown away, which is why this
+        // read as a mystery. "No token provided" would have named the bug.
+        console.error('Order save failed:', orderRes);
+        const why = orderRes && orderRes.message ? ' (' + orderRes.message + ')' : '';
+        showToast(
+            "Payment received" + why + ". Your order is saved on this device and " +
+            "we'll retry automatically. Reference " + reference + ".",
+            "warning"
+        );
     }
     setPayBtnBusy(false);
+}
+
+/* ── Paid orders awaiting a successful save ──────────────────────────────
+   A payment that Paystack has confirmed but the API has not yet accepted is
+   money taken for nothing until the order lands. These live in localStorage,
+   not sessionStorage, so they survive the tab being closed in frustration.  */
+const PAID_ORDERS_KEY = 'glomek_unsaved_paid_orders';
+const PAID_ORDER_MAX_ATTEMPTS = 5;
+const PAID_ORDER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function readParkedOrders() {
+    try {
+        const list = JSON.parse(localStorage.getItem(PAID_ORDERS_KEY) || '[]');
+        return Array.isArray(list) ? list : [];
+    } catch { return []; }
+}
+
+function writeParkedOrders(list) {
+    try { localStorage.setItem(PAID_ORDERS_KEY, JSON.stringify(list)); }
+    catch { /* storage full or blocked — nothing useful to do here */ }
+}
+
+function parkPaidOrder(payload, reference) {
+    const list = readParkedOrders().filter(o => o.reference !== reference);
+    list.push({ payload, reference, parkedAt: Date.now(), attempts: 0 });
+    writeParkedOrders(list);
+}
+
+function clearParkedOrder(reference) {
+    writeParkedOrders(readParkedOrders().filter(o => o.reference !== reference));
+}
+
+/**
+ * Retries any paid-but-unsaved order. Runs on load, once the token has been
+ * restored from sessionStorage.
+ *
+ * Re-sending is safe: the server re-verifies the reference with Paystack and
+ * rejects one it has already turned into an order, so a retry cannot produce a
+ * duplicate.
+ */
+async function retryParkedOrders() {
+    let list = readParkedOrders();
+    if (list.length === 0) return;
+
+    // Drop anything too old or too often tried to be worth retrying silently.
+    const stale = list.filter(o =>
+        Date.now() - (o.parkedAt || 0) > PAID_ORDER_MAX_AGE_MS ||
+        (o.attempts || 0) >= PAID_ORDER_MAX_ATTEMPTS
+    );
+    if (stale.length) {
+        console.warn('GLOMEK: giving up on paid orders', stale.map(o => o.reference));
+        showToast(
+            "We still couldn't save an earlier paid order. Please contact support with reference " +
+            stale[0].reference + ".",
+            "error"
+        );
+        list = list.filter(o => !stale.includes(o));
+        writeParkedOrders(list);
+    }
+
+    if (list.length === 0 || !currentUser || !userToken) return;
+
+    // An order parked seconds ago is one finalisePaidOrder() has just failed
+    // on; retrying it in the same breath only repeats the same error toast.
+    // Leave it for the next load.
+    const ready = list.filter(o => Date.now() - (o.parkedAt || 0) > 30000);
+    if (ready.length === 0) return;
+
+    for (const entry of ready) {
+        entry.attempts = (entry.attempts || 0) + 1;
+        writeParkedOrders(list);
+
+        const res = await ApiService.createOrder(entry.payload, userToken);
+        if (res && res.success) {
+            clearParkedOrder(entry.reference);
+            showToast("Your earlier paid order has now been placed. Reference " + entry.reference + ".", "success");
+        } else {
+            console.warn('GLOMEK: retry failed for ' + entry.reference, res);
+        }
+    }
 }
 
 /**
@@ -2081,10 +2378,16 @@ window.openProductDetails = async function (productId) {
         showPdLoadingSkeleton();
         openModal('productDetailModal');
         const freshProduct = await ApiService.fetchProductById(productId);
-        if (!freshProduct) { closeModal('productDetailModal'); showToast('Product not found.', 'error'); return; }
+        if (!freshProduct) {
+            closeModal('productDetailModal');
+            // fetchProductById already retried a dropped request, so by here it
+            // is either genuinely gone or the connection is down. Say both.
+            showToast("Couldn't open that product. Check your connection and try again.", 'error');
+            return false;
+        }
         product = freshProduct;
         populateProductDetail(product);
-        return;
+        return true;
     }
 
     // Populate immediately with cached data
@@ -2104,6 +2407,8 @@ window.openProductDetails = async function (productId) {
             updatePdRatingStars(freshProduct);
         }
     });
+
+    return true;
 }
 
 function showPdLoadingSkeleton() {
@@ -2421,7 +2726,7 @@ function renderProductReviews(product) {
 async function checkReviewEligibility(productId) {
     if (!currentUser || !currentUser._id) return false;
     try {
-        const orders = await ApiService.fetchUserOrders(currentUser._id, userToken);
+        const { orders } = await ApiService.fetchUserOrders(currentUser._id, userToken);
         for (const order of orders) {
             const status = (order.orderStatus || '').toLowerCase();
             // User can review if the order is Delivered
@@ -2640,6 +2945,11 @@ window.openModal = function (id) {
 
     focusReturnStack.push(document.activeElement);
     el.hidden = false;
+
+    // Google sizes its button from the container's box, so it can only be
+    // drawn once the dialog is actually on screen. Idempotent — reopening the
+    // modal does not redraw a button that is already there.
+    if (id === 'authModal') renderGoogleButton();
 
     // Announce it as a dialog rather than an anonymous div.
     el.setAttribute('role', 'dialog');

@@ -519,7 +519,7 @@ describe('🔎 Search', () => {
 
     describe('suggestions', () => {
 
-        test('a full product title never appears as a suggestion', async () => {
+        test('typing never names a product from the catalogue', async () => {
             const LONG = 'Samsung Galaxy A51 SM-A515 16.5 cm (6.5") 4G USB Type-C 4GB 128GB Blue';
             const { win, doc } = boot();
             await ready(win, doc);
@@ -531,20 +531,16 @@ describe('🔎 Search', () => {
             input.dispatchEvent(new win.Event('input', { bubbles: true }));
             await sleep(200);
 
+            // Neither the whole title nor any shortened form of it. The
+            // dropdown must not be a window onto the product database.
             const box = doc.getElementById('searchSuggestions');
-            expect(box.hidden).toBe(false);
             expect(box.textContent).not.toContain(LONG);
-            expect(box.textContent).not.toContain('USB Type-C');
-
-            // What it offers must be a short, searchable phrase.
-            const item = box.querySelector('.search-suggestion-item');
-            expect(item).not.toBeNull();
-            const term = item.getAttribute('data-text');
-            expect(term.length).toBeLessThanOrEqual(34);
-            expect(LONG.startsWith(term)).toBe(true);
+            expect(box.textContent).not.toContain('Samsung Galaxy');
+            expect(box.textContent).not.toContain('Products');
+            expect(box.hidden).toBe(true);
         });
 
-        test('picking a suggestion searches the phrase, not the whole title', async () => {
+        test('products arrive only after the search is submitted', async () => {
             const LONG = 'HP 17.3-inch Prelude Backpack (12 pack)';
             const { win, doc, queries } = boot();
             await ready(win, doc);
@@ -552,21 +548,40 @@ describe('🔎 Search', () => {
             win.__state.allProducts = [{ _id: 'x2', name: LONG, price: 100 }];
 
             const input = doc.getElementById('searchInput');
+            queries.length = 0;
             input.value = 'prelude';
+            input.dispatchEvent(new win.Event('input', { bubbles: true }));
+            await sleep(300);
+
+            // Typing on its own asks the server for nothing.
+            expect(queries).toEqual([]);
+
+            doc.getElementById('searchSubmitBtn').dispatchEvent(
+                new win.Event('click', { bubbles: true })
+            );
+            await sleep(400);
+
+            expect(queries).toContain('prelude');
+        });
+
+        test('recent searches are still offered, and only those', async () => {
+            const { win, doc } = boot();
+            await ready(win, doc);
+
+            win.localStorage.setItem(
+                'glomek_search_history', JSON.stringify(['kente cloth'])
+            );
+            win.__state.allProducts = [{ _id: 'x3', name: 'Kente Wax Print Shirt', price: 60 }];
+
+            const input = doc.getElementById('searchInput');
+            input.value = 'kente';
             input.dispatchEvent(new win.Event('input', { bubbles: true }));
             await sleep(200);
 
-            const term = doc.querySelector('#searchSuggestions .search-suggestion-item')
-                .getAttribute('data-text');
-
-            queries.length = 0;
-            win._selectSuggestion(term);
-            await sleep(400);
-
-            // The query must be the phrase — never the full catalogue title.
-            expect(queries).toContain(term);
-            expect(queries).not.toContain(LONG);
-            expect(term).not.toMatch(/\(12 pack\)/);
+            const box = doc.getElementById('searchSuggestions');
+            expect(box.hidden).toBe(false);
+            expect(box.textContent).toContain('kente cloth');
+            expect(box.textContent).not.toContain('Wax Print Shirt');
         });
     });
 

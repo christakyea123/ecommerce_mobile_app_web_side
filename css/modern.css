@@ -418,15 +418,19 @@
   margin: 0;
 }
 
+/* "Your essentials, all in one place" — the only tinted section heading. */
 .gl-section.tinted .gl-section-title {
-  color: #a2560a;
+  color: #222222;
 }
 
+/* The "See all" link. Deliberately its own value rather than
+   --accent-color (#f68b1e): a touch brighter, so it still reads as a control
+   against the cream section tint now that the heading beside it is near-black. */
 .gl-section-link {
   flex-shrink: 0;
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--accent-color);
+  color: #FF9C08;
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -1121,14 +1125,6 @@ body.hero-hidden .main-content {
   overflow: hidden;
 }
 
-/* The hero used to sit flush to all four edges, so the page read as one solid
-   block. It now has the same gutters as the sections below it and breathing
-   room above and below, which is what makes a card feel deliberate. */
-.hero-wrapper {
-  padding: 12px 12px 0 !important;
-  margin-bottom: 16px !important;
-}
-
 .premium-hero {
   margin-bottom: 0 !important;
 }
@@ -1159,13 +1155,6 @@ body.hero-hidden .main-content {
 .breadcrumb-nav {
   margin-top: 0;
   padding-top: 2px;
-}
-
-@media (max-width: 768px) {
-  .hero-wrapper {
-    padding: 10px 10px 0 !important;
-    margin-bottom: 12px !important;
-  }
 }
 
 .poster-dot {
@@ -1242,10 +1231,6 @@ body.hero-hidden .main-content {
     height: 66px;
   }
 
-  .hero-wrapper {
-    padding: 0 8px;
-  }
-
   .gl-call-strip {
     font-size: 0.8rem;
     border-radius: 10px;
@@ -1256,4 +1241,82 @@ body.hero-hidden .main-content {
   .gl-circle-item { width: 64px; }
   .gl-circle-thumb { width: 58px; height: 58px; }
   .gl-circle-label { font-size: 0.68rem; }
+}
+
+/* ==========================================================================
+   11. HERO ⇄ CALL STRIP — one declared gap, fluid in both axes
+
+   The space between the poster and the "Call to Order" strip used to be a
+   leftover, not a decision. It fell out of three numbers that each changed at
+   a different breakpoint:
+
+       .hero-wrapper  margin-bottom   12 / 16px
+       .main-content  margin-top     -30 / -40 / -50 / -120px   (hero.css)
+       .main-content  padding-top     16 / 24 / 32px            (responsive.css)
+
+   Adding those up gave -2px at 360w, -12px at 412w, -22px at 768w and -72px
+   at 769w. Every one of those is the strip sitting *underneath* the poster by
+   a different amount, and because .premium-hero has a higher z-index than
+   .main-content the poster painted over it — leaving the thin, uneven sliver
+   of page background that shows up between them on a phone.
+
+   The gap is now stated once, in --hero-gap, and nothing is subtracted from
+   it. The + combinator scopes this to the home layout (hero-wrapper directly
+   followed by main-content); inner pages keep their own spacing.
+
+   The poster height answers to viewport *height* as well as width, so a short
+   landscape phone or a half-height desktop window no longer gets a poster
+   that eats the screen. min() takes whichever axis is the tighter constraint;
+   clamp() keeps it sane at both extremes. svh is used where supported so the
+   poster does not resize while a mobile URL bar hides and shows.
+   ========================================================================== */
+:root {
+  --hero-h: clamp(200px, min(30vw, 44vh), 420px);
+  --hero-h: clamp(200px, min(30vw, 44svh), 420px);
+  --hero-gutter: clamp(8px, 2.4vw, 12px);
+  --hero-gap: clamp(8px, 1.4vh, 16px);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --hero-h: clamp(120px, min(46vw, 24vh), 260px);
+    --hero-h: clamp(120px, min(46vw, 24svh), 260px);
+  }
+}
+
+/* Beats the ten fixed-height rules spread across hero.css and responsive.css
+   (420/220/220/200/190/180/165/160/145/130px), which between them keyed the
+   poster to width alone. They stay put as the floor for any browser without
+   clamp()/min(). */
+.premium-hero .poster-container {
+  height: var(--hero-h) !important;
+}
+
+.hero-wrapper {
+  padding: var(--hero-gutter) var(--hero-gutter) 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.hero-wrapper + .main-content {
+  margin-top: 0 !important;
+  padding-top: var(--hero-gap) !important;
+}
+
+/* The hero sat ABOVE the content in the stacking order (z-index 12 against
+   .main-content's inline 10), so anything the content overlapped upward was
+   not merely overlapped — it was painted over and gone. On desktop the old
+   sums pulled .main-content up 72px and the call strip is only ~40px tall, so
+   the entire strip ended up behind the poster and simply was not there.
+
+   Content now paints above the hero. The margins above already mean there is
+   nothing to overlap; this is so that if a spacing change ever reintroduces
+   one, it shows up as an overlap somebody can see rather than as information
+   that silently vanishes. */
+.hero-wrapper + .main-content {
+  z-index: 13 !important;
+}
+
+/* With the overlap gone the strip no longer needs to out-paint the poster. */
+.gl-call-strip {
+  margin-bottom: var(--hero-gap);
 }

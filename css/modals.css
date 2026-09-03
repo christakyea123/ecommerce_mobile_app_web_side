@@ -82,34 +82,39 @@
   position: relative;
 }
 
-/* ── Google Sign-In Fallback ───────────────────────────── */
-.google-signin-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+/* ── Google Sign-In ────────────────────────────────────── */
+
+/* Google draws its own button into this container once the modal is open.
+   The min-height is set from JS before the render so the dialog does not
+   jump when the iframe lands. */
+#googleSignInBtnContainer {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid #dadce0;
+}
+
+/* Shown only when Google genuinely cannot be offered — the script did not
+   load, or this origin is not on the OAuth client's authorised list. It
+   replaced a button that asked for an email in a prompt() and signed the
+   visitor in as whoever they named. */
+.google-unavailable {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border, #dadce0);
   border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #3c4043;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: var(--section-tint, #f8f9fa);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-secondary, #5f6368);
+  text-align: left;
 }
 
-.google-signin-btn:hover {
-  background: #f8f9fa;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  border-color: #c6c6c6;
-}
-
-.google-signin-btn:active {
-  background: #eee;
+.google-unavailable .material-symbols-rounded {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: var(--accent-color, #f68b1e);
 }
 
 /* ==========================================================================

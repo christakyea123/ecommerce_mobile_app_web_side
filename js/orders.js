@@ -11,30 +11,51 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift();
-    return null;
+/**
+ * This page reads the same session the main store wrote.
+ *
+ * It used to look for a `glomek_token` cookie, which could never work: that
+ * cookie is set by api.glomek.com, and document.cookie on glomek.com cannot
+ * see another domain's cookies. `localStorage.glomek_token` was never written
+ * either. So the token was always null, the gate below always failed, and
+ * "Your Orders" from the menu always said "log in on the main store" — no
+ * matter who was signed in. The only order list that worked was the profile
+ * modal on index.html, which still had the token in memory.
+ *
+ * app.js now keeps it in sessionStorage, which is shared across pages of this
+ * origin within the tab.
+ */
+function readToken() {
+    try { return sessionStorage.getItem('glomek_token'); } catch { return null; }
 }
 
-const currentUser = JSON.parse(localStorage.getItem('glomek_user'));
-const userToken = getCookie('glomek_token') || localStorage.getItem('glomek_token');
+function readStoredUser() {
+    try { return JSON.parse(localStorage.getItem('glomek_user') || 'null'); }
+    catch { return null; }
+}
+
+const currentUser = readStoredUser();
+const userToken = readToken();
+
+function showSignedOut(contentCard, message) {
+    contentCard.innerHTML = `
+        <h1 class="page-title">Your Orders</h1>
+        <section class="page-section">
+            <p style="margin-top:1rem;color:#565959;">${message} <a href="../index.html" style="color:#f68b1e;">Go to the main store</a>.</p>
+        </section>
+    `;
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     const contentCard = document.querySelector('.page-content-card');
 
-    if (!currentUser || !userToken) {
-        contentCard.innerHTML = `
-            <h1 class="page-title">Your Orders</h1>
-            <section class="page-section">
-                <p style="margin-top:1rem;color:#565959;">Please <a href="../index.html" style="color:#f68b1e;">log in on the main store</a> to view your orders.</p>
-            </section>
-        `;
+    // Gate on the customer only. Whether the token is still good is the
+    // server's call, not something to guess at from a cookie we cannot read.
+    if (!currentUser || !currentUser._id) {
+        showSignedOut(contentCard, 'Please log in to view your orders.');
         return;
     }
 
-    // Replace Loading state
     contentCard.innerHTML = `
         <h1 class="page-title">Your Orders</h1>
         <div id="ordersList" style="min-height: 200px; position:relative;">
@@ -42,9 +63,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
     `;
 
-    // Fetch Orders
-    const orders = await ApiService.fetchUserOrders(currentUser._id, userToken);
-    
+    const { orders, unauthorized } = await ApiService.fetchUserOrders(currentUser._id, userToken);
+
+    if (unauthorized) {
+        showSignedOut(contentCard, 'Your session has expired. Please log in again.');
+        return;
+    }
+
     renderOrders(orders);
 });
 

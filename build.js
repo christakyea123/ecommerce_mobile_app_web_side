@@ -19,6 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const esbuild = require('esbuild');
+const crypto = require('crypto');
 
 const ROOT = __dirname;
 const DIST = path.join(ROOT, 'dist');
@@ -27,7 +28,7 @@ const DIST = path.join(ROOT, 'dist');
 const COPY = ['index.html', 'robots.txt', 'sitemap.xml', 'pages', 'assets'];
 
 // Never shipped: dependencies, tests, tooling, VCS, editor config.
-const NEVER_SHIP = new Set(['node_modules', 'tests', '.git', '.vscode', 'dist', 'build.js', 'package.json', 'package-lock.json', '.gitignore', 'README.md']);
+const NEVER_SHIP = new Set(['node_modules', 'tests', '.git', '.vscode', 'dist', 'build.js', 'stamp-assets.js', 'package.json', 'package-lock.json', '.gitignore', 'README.md']);
 
 function rmrf(target) {
     if (fs.existsSync(target)) fs.rmSync(target, { recursive: true, force: true });
@@ -93,11 +94,23 @@ const kb = n => (n / 1024).toFixed(1) + ' KB';
  * individual files stay in dist/ as well, so nothing that references them
  * directly breaks.
  */
+/**
+ * The same eight-hex content stamp stamp-assets.js puts on the source pages.
+ * The bundles need it too: their names come from what went into them, so two
+ * different builds produce the same filename, and glomek.com serves CSS with
+ * `cache-control: public, max-age=604800`.
+ */
+function stamp(content) {
+    return crypto.createHash('sha256').update(content).digest('hex').slice(0, 8);
+}
+
 function bundlePage(htmlPath) {
     let html = fs.readFileSync(htmlPath, 'utf8');
     const pageDir = path.dirname(htmlPath);
 
-    const resolve = (href) => path.resolve(pageDir, href);
+    // ?v=<hash> is a cache-busting stamp, not part of the path on disk.
+    const bare = (href) => href.split('?')[0];
+    const resolve = (href) => path.resolve(pageDir, bare(href));
     const isLocal = (href) => !/^https?:|^\/\//.test(href);
 
     // ── stylesheets ──────────────────────────────────────────────
@@ -110,7 +123,7 @@ function bundlePage(htmlPath) {
         // "bundle.css" meant the last page built overwrote the others — and
         // the content pages link a shorter list than index.html, so index
         // silently lost every style unique to it.
-        const key = cssTags.map(t => path.basename(t.href, '.css')).join('-');
+        const key = cssTags.map(t => path.basename(bare(t.href), '.css')).join('-');
         const file = `bundle-${key}.css`;
 
         const css = cssTags
@@ -119,7 +132,7 @@ function bundlePage(htmlPath) {
         fs.writeFileSync(path.join(DIST, 'css', file), css);
 
         const rel = path.relative(pageDir, path.join(DIST, 'css', file)).replace(/\\/g, '/');
-        html = html.replace(cssTags[0].tag, `    <link rel="stylesheet" href="${rel}">\n`);
+        html = html.replace(cssTags[0].tag, `    <link rel="stylesheet" href="${rel}?v=${stamp(css)}">\n`);
         for (const t of cssTags.slice(1)) html = html.replace(t.tag, '');
     }
 
@@ -131,7 +144,7 @@ function bundlePage(htmlPath) {
     if (jsTags.length > 1) {
         // One file per page-set, named for the scripts it contains, so two
         // pages with different script lists never overwrite each other.
-        const key = jsTags.map(t => path.basename(t.src, '.js')).join('-');
+        const key = jsTags.map(t => path.basename(bare(t.src), '.js')).join('-');
         const file = `bundle-${key}.js`;
         const js = jsTags
             .map(t => fs.readFileSync(resolve(t.src), 'utf8'))
@@ -139,7 +152,7 @@ function bundlePage(htmlPath) {
         fs.writeFileSync(path.join(DIST, 'js', file), js);
 
         const rel = path.relative(pageDir, path.join(DIST, 'js', file)).replace(/\\/g, '/');
-        html = html.replace(jsTags[0].tag, `    <script src="${rel}" defer></script>\n`);
+        html = html.replace(jsTags[0].tag, `    <script src="${rel}?v=${stamp(js)}" defer></script>\n`);
         for (const t of jsTags.slice(1)) html = html.replace(t.tag, '');
     }
 

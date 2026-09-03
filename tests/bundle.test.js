@@ -25,6 +25,14 @@ const DIST = path.resolve(__dirname, '..', 'dist');
 const hasDist = fs.existsSync(path.join(DIST, 'index.html'));
 const describeIfBuilt = hasDist ? describe : describe.skip;
 
+/**
+ * Every local reference carries a ?v=<content hash> so a deploy is not hidden
+ * behind glomek.com's `cache-control: public, max-age=604800`. The stamp is
+ * part of the URL, never of the path on disk, so anything that opens the file
+ * has to drop it first.
+ */
+const bare = (ref) => ref.split('?')[0];
+
 jest.setTimeout(30000);
 
 describeIfBuilt('📦 Built bundle', () => {
@@ -50,7 +58,7 @@ describeIfBuilt('📦 Built bundle', () => {
             ...[...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]),
         ].filter(r => !/^https?:|^\/\//.test(r));
 
-        const missing = refs.filter(r => !fs.existsSync(path.join(DIST, r)));
+        const missing = refs.filter(r => !fs.existsSync(path.join(DIST, bare(r))));
         expect(missing).toEqual([]);
     });
 
@@ -79,7 +87,7 @@ describeIfBuilt('📦 Built bundle', () => {
         win.Element.prototype.scrollIntoView = () => { };
 
         // Exactly what the browser executes.
-        win.eval(fs.readFileSync(path.join(DIST, bundleSrc), 'utf8'));
+        win.eval(fs.readFileSync(path.join(DIST, bare(bundleSrc)), 'utf8'));
         win.document.dispatchEvent(new win.Event('DOMContentLoaded', { bubbles: true }));
         await new Promise(r => setTimeout(r, 600));
 
@@ -100,7 +108,7 @@ describeIfBuilt('📦 Built bundle', () => {
             .map(m => (m[0].match(/href="([^"]+)"/) || [])[1])
             .find(h => h && !/^https?:|^\/\//.test(h));
 
-        const css = fs.readFileSync(path.join(DIST, href), 'utf8');
+        const css = fs.readFileSync(path.join(DIST, bare(href)), 'utf8');
 
         // Selectors that live only in modern.css, the last sheet index links.
         expect(css).toMatch(/\.listing-bar/);
@@ -121,7 +129,7 @@ describeIfBuilt('📦 Built bundle', () => {
             const href = [...html.matchAll(/<link[^>]*rel="stylesheet"[^>]*>/g)]
                 .map(m => (m[0].match(/href="([^"]+)"/) || [])[1])
                 .find(h => h && !/^https?:|^\/\//.test(h));
-            return path.posix.normalize(path.posix.join(dir, href));
+            return path.posix.normalize(path.posix.join(dir, bare(href)));
         };
 
         const indexBundle = localCss(read('index.html'), '.');

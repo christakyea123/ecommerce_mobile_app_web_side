@@ -26,26 +26,54 @@ class ApiService {
         }
     }
 
-    static async fetchCategories() {
+    /**
+     * Follows a paginated collection to the end, instead of taking the first
+     * page and hoping it was all of it.
+     *
+     * Every reference list here was a single fixed fetch — categories at
+     * limit=20, posters at limit=5, subCategories at the default limit=10,
+     * brands at 50. Nothing read `total`, so the moment the catalogue outgrew
+     * a hardcoded number the extras simply stopped existing on the site, with
+     * no error anywhere. subCategories was one short of that: 7 of a limit of
+     * 10. Verified against production, which honours both page and limit and
+     * reports total:
+     *
+     *     posters?page=1&limit=2 -> 2 items, total 3
+     *     posters?page=2&limit=2 -> 1 item,  total 3
+     *     posters?page=3&limit=2 -> 0 items
+     *
+     * maxPages is a guard, not a limit: if a server ever ignored `page` and
+     * returned the same rows forever, the total check below stops after one
+     * pass anyway — this is purely so a misbehaving endpoint cannot spin.
+     */
+    static async _fetchAllPages(endpoint, label, pageSize = 50, maxPages = 20) {
+        const out = [];
         try {
-            const req = await fetch(`${BASE_URL}/categories?page=1&limit=20`);
-            const res = await req.json();
-            return res.success ? res.data : [];
+            for (let page = 1; page <= maxPages; page++) {
+                const req = await fetch(`${BASE_URL}/${endpoint}?page=${page}&limit=${pageSize}`);
+                const res = await req.json();
+                if (!res || !res.success || !Array.isArray(res.data)) break;
+
+                out.push(...res.data);
+
+                // A short page is the last page.
+                if (res.data.length < pageSize) break;
+                // And stop as soon as we hold everything the server says exists.
+                const total = typeof res.total === 'number' ? res.total : out.length;
+                if (out.length >= total) break;
+            }
         } catch (e) {
-            console.error('Error fetching categories:', e);
-            return [];
+            console.error(`Error fetching ${label}:`, e);
         }
+        return out;
+    }
+
+    static async fetchCategories() {
+        return this._fetchAllPages('categories', 'categories');
     }
 
     static async fetchPosters() {
-        try {
-            const req = await fetch(`${BASE_URL}/posters?page=1&limit=5`);
-            const res = await req.json();
-            return res.success ? res.data : [];
-        } catch (e) {
-            console.error('Error fetching posters:', e);
-            return [];
-        }
+        return this._fetchAllPages('posters', 'posters', 20);
     }
 
     static async fetchRecommendations(userId = '') {
@@ -62,20 +90,14 @@ class ApiService {
 
     // --- NEW FULL BACKEND APIS --- //
 
-    static async fetchSubCategories(page = 1, limit = 10) {
-        try {
-            const req = await fetch(`${BASE_URL}/subCategories?page=${page}&limit=${limit}`);
-            const res = await req.json();
-            return res.success ? res.data : [];
-        } catch (e) { return []; }
+    // The old page/limit arguments are accepted and ignored: both callers
+    // wanted "all of them", and passing a number was how they got truncated.
+    static async fetchSubCategories() {
+        return this._fetchAllPages('subCategories', 'subcategories');
     }
 
-    static async fetchBrands(page = 1, limit = 10) {
-        try {
-            const req = await fetch(`${BASE_URL}/brands?page=${page}&limit=${limit}`);
-            const res = await req.json();
-            return res.success ? res.data : [];
-        } catch (e) { return []; }
+    static async fetchBrands() {
+        return this._fetchAllPages('brands', 'brands');
     }
 
     // --- AUTHENTICATION --- //
@@ -95,6 +117,31 @@ class ApiService {
         return this._post('users/google-login', { email: email.toLowerCase(), name });
     }
 
+    /**
+     * Does the HttpOnly cookie alone authenticate us?
+     *
+     * Deliberately sends NO Authorization header, so the only credential in
+     * play is the cookie the server set at login. The API reads a cookie named
+     * `token` — verified against production:
+     *
+     *     Cookie: token=bogus        -> {"message":"Invalid token"}   (read)
+     *     Cookie: glomek_token=bogus -> {"message":"No token provided"} (ignored)
+     *     Authorization: Bearer ...  -> {"message":"Invalid token"}   (read)
+     *
+     * A plain 200 means the cookie carried the request on its own, and the
+     * copy the page is holding in sessionStorage is dead weight.
+     */
+    static async cookieAuthWorks(userId) {
+        try {
+            const req = await fetch(`${BASE_URL}/orders/orderByUserId/${userId}?page=1&limit=1`, {
+                credentials: "include"
+            });
+            return req.status === 200;
+        } catch (e) {
+            return false;
+        }
+    }
+
     static async forgotPassword(email) {
         return this._post('users/forgot-password', { email });
     }
@@ -112,15 +159,33 @@ class ApiService {
         return this._post('orders', orderData, token);
     }
 
+    /**
+     * Returns { orders, unauthorized }.
+     *
+     * The distinction matters: this used to answer [] for a 401 exactly as it
+     * did for a customer with no orders, so a signed-out page cheerfully said
+     * "You haven't placed any orders yet." It also sent the literal header
+     * "Bearer null" when no token was available, which is worse than sending
+     * none — some proxies reject a malformed header outright.
+     */
     static async fetchUserOrders(userId, token, page = 1) {
         try {
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const req = await fetch(`${BASE_URL}/orders/orderByUserId/${userId}?page=${page}&limit=10`, {
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers,
                 credentials: 'include'
             });
+            if (req.status === 401 || req.status === 403) {
+                return { orders: [], unauthorized: true };
+            }
             const res = await req.json();
-            return res.success ? res.data : [];
-        } catch(e) { return []; }
+            return { orders: (res && res.success && Array.isArray(res.data)) ? res.data : [], unauthorized: false };
+        } catch (e) {
+            console.error('Error fetching orders:', e);
+            return { orders: [], unauthorized: false, error: true };
+        }
     }
 
     // --- PAYSTACK PAYMENT --- //
@@ -151,12 +216,31 @@ class ApiService {
         return this._post('products/rate', { productId, rating, review }, token);
     }
 
-    static async fetchProductById(productId) {
-        try {
-            const req = await fetch(`${BASE_URL}/products/${productId}`);
-            const res = await req.json();
-            return res.success ? res.data : null;
-        } catch(e) { return null; }
+    /**
+     * One retry, because this is what a shared product link depends on.
+     *
+     * A single dropped request used to be indistinguishable from a deleted
+     * product: both returned null and both said "Product not found". On a
+     * phone — patchy signal, a radio waking up, a backgrounded tab — the
+     * dropped request is by far the likelier of the two, and it is the one
+     * worth trying again. A real 404 is not, so it short-circuits.
+     */
+    static async fetchProductById(productId, attempts = 2) {
+        for (let i = 0; i < attempts; i++) {
+            try {
+                const req = await fetch(`${BASE_URL}/products/${productId}`);
+                if (req.status === 404) return null;
+                const res = await req.json();
+                return (res && res.success) ? res.data : null;
+            } catch (e) {
+                if (i === attempts - 1) {
+                    console.error("Error fetching product " + productId + ":", e);
+                    return null;
+                }
+                await new Promise(r => setTimeout(r, 400));
+            }
+        }
+        return null;
     }
 
     // --- UTILS --- //
