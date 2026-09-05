@@ -449,21 +449,18 @@ function renderGoogleUnavailable(container, reason) {
 
 async function handleGoogleCredentialResponse(response) {
     if (!response || !response.credential) return;
-    try {
-        const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        const { email, name } = payload;
-        await performGoogleLogin(email, name);
-    } catch (err) {
-        console.error("Google Auth error:", err);
-        showToast("Unable to complete Google Auth.", "error");
-    }
+    // `credential` IS Google's signed ID token. It used to be unpacked here
+    // and only the email posted onward, which meant the server was trusting a
+    // browser's word about who was signing in. Send the token itself and let
+    // the server verify Google's signature.
+    await performGoogleLogin(response.credential);
 }
 
-async function performGoogleLogin(email, name) {
+async function performGoogleLogin(idToken) {
     const btn = document.getElementById('authSubmitBtn');
     if (btn) { btn.textContent = "Please wait..."; btn.disabled = true; }
     try {
-        const res = await ApiService.googleLogin(email, name);
+        const res = await ApiService.googleLogin(idToken);
         if (res && res.success) {
             currentUser = res.data;
             if (res.token) setUserToken(res.token);
@@ -3176,13 +3173,29 @@ function renderRecentlyViewed() {
     }
 
     section.hidden = false;
+    // The thumbnail sits in its own box that shimmers until the image paints.
+    // On a slow connection these were blank squares for several seconds, which
+    // reads as broken — particularly beside a neighbour that already loaded.
     scroll.innerHTML = state.recentlyViewed.map(item => `
         <div class="rv-card" onclick="openProductDetails('${item._id}')">
-            <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=FALLBACK_IMAGE;">
+            <div class="rv-thumb">
+                <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async"
+                     onload="this.parentNode.classList.add('is-loaded')"
+                     onerror="this.onerror=null;this.src=FALLBACK_IMAGE;this.parentNode.classList.add('is-loaded');">
+            </div>
             <div class="rv-title">${escapeHtml(item.name)}</div>
             <div class="rv-price">${formatPrice(item.price)}</div>
         </div>
     `).join('');
+
+    // An image served straight from cache can finish before the inline onload
+    // is wired up, and would otherwise shimmer forever behind a picture that
+    // is already there.
+    scroll.querySelectorAll('.rv-thumb img').forEach(img => {
+        if (img.complete && img.naturalWidth > 0) {
+            img.parentNode.classList.add('is-loaded');
+        }
+    });
 }
 
 // ====== WISHLIST SYSTEM ====== //

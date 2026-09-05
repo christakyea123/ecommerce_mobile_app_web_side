@@ -83,6 +83,7 @@
 
 /* Very narrow phones: drop the word, keep a full-size icon button. */
 @media (max-width: 420px) {
+
   .search-submit-btn {
     padding: 0 !important;
     width: 36px;
@@ -130,259 +131,10 @@
   background: rgba(255, 255, 255, 0.14);
 }
 
-/* ==========================================================================
-   1c. CATEGORY DRAWER — slides in from the left
-   ========================================================================== */
-.drawer-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 100002;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.28s ease;
-}
-
-.drawer-scrim.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.cat-drawer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 100003;
-  width: 84%;
-  max-width: 340px;
-  background: var(--surface-color);
-  display: flex;
-  flex-direction: column;
-  transform: translateX(-100%);
-  transition: transform 0.3s var(--ease-out-app, cubic-bezier(0.16, 1, 0.3, 1));
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
-  padding-top: var(--safe-top, 0px);
-  padding-bottom: var(--safe-bottom, 0px);
-}
-
-.cat-drawer.open {
-  transform: translateX(0);
-}
-
-.cat-drawer-head {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
-  background: #131921;
-  color: #fff;
-}
-
-.cat-drawer-title {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 800;
-}
-
-.cat-drawer-close {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.cat-drawer-account {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--section-tint);
-  border-bottom: 1px solid var(--hairline);
-  font-size: 0.9rem;
-}
-
-.cat-drawer-account .material-symbols-rounded {
-  font-size: 26px;
-  color: var(--accent-color);
-}
-
-.cat-drawer-signin {
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: var(--accent-color);
-}
-
-/* ── Primary nav block (Home / Saved / Cart / Account) ──── */
-.cat-drawer-main {
-  flex-shrink: 0;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--hairline);
-}
-
-.cat-drawer-row.nav > .material-symbols-rounded:first-child {
-  color: var(--accent-color);
-  background: var(--accent-light);
-}
-
-/* Count pill on the Cart / Saved rows — same colour as every other badge */
-.cat-drawer-count {
-  flex-shrink: 0;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--radius-pill);
-  background: var(--badge-bg);
-  color: var(--badge-fg);
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 20px;
-  text-align: center;
-}
-
-.cat-drawer-count[hidden] {
-  display: none;
-}
-
-.cat-drawer-sectionlabel {
-  flex-shrink: 0;
-  padding: 12px 16px 6px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.cat-drawer-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  padding: 0 0 6px;
-}
-
-.cat-drawer-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 16px;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: left;
-}
-
-.cat-drawer-row:active {
-  background: var(--section-tint);
-}
-
-.cat-drawer-row.active {
-  background: var(--accent-light);
-  color: #a2560a;
-}
-
-.cat-drawer-row img,
-.cat-drawer-row > .material-symbols-rounded:first-child {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  object-fit: cover;
-  background: var(--bg-color);
-  display: grid;
-  place-items: center;
-  font-size: 20px;
-  color: var(--accent-color);
-}
-
-.cat-drawer-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cat-drawer-chev {
-  flex-shrink: 0;
-  font-size: 20px;
-  color: #b9bec3;
-}
-
-.cat-drawer-subs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 16px 12px 62px;
-}
-
-.cat-drawer-sub {
-  border: 1px solid var(--hairline);
-  background: var(--bg-color);
-  border-radius: var(--radius-pill);
-  padding: 5px 11px;
-  font-family: inherit;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.cat-drawer-sub:active {
-  background: var(--accent-light);
-  border-color: var(--accent-color);
-  color: var(--accent-color);
-}
-
-.cat-drawer-empty {
-  padding: 24px 16px;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  text-align: center;
-}
-
-.cat-drawer-foot {
-  flex-shrink: 0;
-  border-top: 1px solid var(--hairline);
-  padding: 8px 0;
-}
-
-.cat-drawer-foot a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 16px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.cat-drawer-foot .material-symbols-rounded {
-  font-size: 21px;
-  color: var(--text-secondary);
-}
-
 /* The drawer is a mobile pattern; desktop keeps the category bar. */
 @media (min-width: 901px) {
+
   .mobile-menu-btn { display: none !important; }
-  .cat-drawer,
-  .drawer-scrim { display: none; }
 }
 
 /* ==========================================================================
@@ -538,10 +290,12 @@
 }
 
 @media (min-width: 640px) {
+
   .gl-rail > .product-card { flex-basis: 30%; }
 }
 
 @media (min-width: 900px) {
+
   .gl-rail > .product-card { flex-basis: 19%; }
 }
 
@@ -643,6 +397,7 @@
    covering the results. They belong at the top of the listing and nowhere
    else. */
 @media (max-width: 900px) {
+
   body.is-searching .navbar {
     position: sticky;
   }
@@ -688,6 +443,7 @@ body.hero-hidden .main-content {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .pd-reviews-flash { animation: none; }
 }
 
@@ -821,10 +577,12 @@ body.hero-hidden .main-content {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .card-add-btn.added { animation: none; }
 }
 
 @media (max-width: 420px) {
+
   .card-add-btn {
     font-size: 0.76rem;
     padding: 7px 8px;
@@ -895,6 +653,7 @@ body.hero-hidden .main-content {
 }
 
 @media (max-width: 420px) {
+
   .pagination { gap: 4px; }
 
   .pg-btn {
@@ -941,6 +700,7 @@ body.hero-hidden .main-content {
 
 /* Only where there is a real pointer, and only when there is overflow. */
 @media (hover: hover) and (pointer: fine) {
+
   .gl-rail-wrap.has-overflow .gl-rail-arrow:not([hidden]) {
     display: grid;
   }
@@ -1212,6 +972,7 @@ body.hero-hidden .main-content {
    RESPONSIVE
    ========================================================================== */
 @media (max-width: 768px) {
+
   .gl-section {
     border-radius: var(--radius-card);
     padding: 14px 12px;
@@ -1238,6 +999,7 @@ body.hero-hidden .main-content {
 }
 
 @media (max-width: 400px) {
+
   .gl-circle-item { width: 64px; }
   .gl-circle-thumb { width: 58px; height: 58px; }
   .gl-circle-label { font-size: 0.68rem; }
@@ -1278,6 +1040,7 @@ body.hero-hidden .main-content {
 }
 
 @media (max-width: 768px) {
+
   :root {
     --hero-h: clamp(120px, min(46vw, 24vh), 260px);
     --hero-h: clamp(120px, min(46vw, 24svh), 260px);

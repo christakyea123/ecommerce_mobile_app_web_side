@@ -113,8 +113,13 @@ class ApiService {
         return this._post('users/logout', {});
     }
 
-    static async googleLogin(email, name) {
-        return this._post('users/google-login', { email: email.toLowerCase(), name });
+    /**
+     * Takes Google's signed ID token, not an email. The server verifies the
+     * signature and reads the address out of the verified payload — a browser
+     * cannot claim to be an account it has not signed in to.
+     */
+    static async googleLogin(idToken) {
+        return this._post('users/google-login', { idToken });
     }
 
     /**
@@ -173,10 +178,10 @@ class ApiService {
             const headers = {};
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const req = await fetch(`${BASE_URL}/orders/orderByUserId/${userId}?page=${page}&limit=10`, {
-                headers,
-                credentials: 'include'
-            });
+            const req = await this._authedFetch(
+                `${BASE_URL}/orders/orderByUserId/${userId}?page=${page}&limit=10`,
+                { headers }
+            );
             if (req.status === 401 || req.status === 403) {
                 return { orders: [], unauthorized: true };
             }
@@ -243,18 +248,85 @@ class ApiService {
         return null;
     }
 
+    // --- SESSION --- //
+
+    /**
+     * Access tokens now last 30 minutes rather than 30 days, so an ordinary
+     * session will meet a 401 mid-visit. Spending the 7-day refresh token for
+     * a new pair keeps the customer signed in without a second login.
+     *
+     * The in-flight promise is shared: a page that fires several requests at
+     * once must not start several refreshes, because the refresh token is
+     * single use — the second would be rejected as a replay and sign the
+     * customer out.
+     */
+    static _refreshInFlight = null;
+
+    static async refreshSession() {
+        if (this._refreshInFlight) return this._refreshInFlight;
+
+        this._refreshInFlight = (async () => {
+            try {
+                const req = await fetch(`${BASE_URL}/users/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',   // the refresh token is an HttpOnly cookie
+                    body: '{}',
+                });
+                const res = await req.json();
+                return (res && res.success) ? res : null;
+            } catch (e) {
+                console.error('Session refresh failed:', e);
+                return null;
+            } finally {
+                // Cleared on the next tick so callers awaiting this one all see
+                // the same result before another refresh can begin.
+                setTimeout(() => { ApiService._refreshInFlight = null; }, 0);
+            }
+        })();
+
+        return this._refreshInFlight;
+    }
+
+    /**
+     * fetch() that transparently renews an expired session once.
+     *
+     * Only 401 is retried. A 403 means the credential was understood and
+     * refused — refreshing it would change nothing.
+     */
+    static async _authedFetch(url, options = {}) {
+        let req = await fetch(url, { ...options, credentials: 'include' });
+        if (req.status !== 401) return req;
+
+        const renewed = await this.refreshSession();
+        if (!renewed) return req;
+
+        // Replay the original request with the token the refresh just issued.
+        const headers = { ...(options.headers || {}) };
+        if (renewed.token && headers['Authorization']) {
+            headers['Authorization'] = `Bearer ${renewed.token}`;
+        }
+        return fetch(url, { ...options, headers, credentials: 'include' });
+    }
+
     // --- UTILS --- //
     static async _post(endpoint, data, token = null) {
         try {
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const req = await fetch(`${BASE_URL}/${endpoint}`, {
-                method: 'POST',
-                headers,
-                credentials: 'include',
-                body: JSON.stringify(data)
-            });
+            // Login, refresh and logout must not recurse through the retry
+            // path — a failed login is a genuine 401, not an expired session.
+            const isSessionCall = /^users\/(login-user|login-admin|google-login|register|refresh|logout)$/.test(endpoint);
+
+            const req = isSessionCall
+                ? await fetch(`${BASE_URL}/${endpoint}`, {
+                    method: 'POST', headers, credentials: 'include', body: JSON.stringify(data),
+                })
+                : await this._authedFetch(`${BASE_URL}/${endpoint}`, {
+                    method: 'POST', headers, body: JSON.stringify(data),
+                });
+
             return await req.json();
         } catch(e) {
             console.error(`POST ${endpoint} error:`, e);
