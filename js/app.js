@@ -2563,65 +2563,6 @@ function populateProductDetail(product) {
         descEl.innerHTML = `<li>No description provided.</li>`;
     }
 
-    // Variants / Color Selection
-    const varSec = document.getElementById('pdVariantsSection');
-    if (product.proVariantId && product.proVariantId.length > 0) {
-        varSec.hidden = false;
-        const variants = product.proVariantId;
-
-        const colorNames = ['red', 'blue', 'green', 'black', 'white', 'yellow', 'orange', 'pink', 'purple', 'brown', 'grey', 'gray', 'navy', 'teal', 'maroon', 'beige', 'cream', 'gold', 'silver', 'cyan', 'magenta', 'olive', 'coral', 'salmon', 'turquoise', 'indigo', 'violet', 'khaki', 'tan', 'ivory', 'lavender', 'mint', 'peach', 'rose', 'burgundy', 'charcoal', 'chocolate', 'crimson', 'emerald', 'jade', 'lime', 'mauve', 'midnight', 'plum', 'ruby', 'rust', 'scarlet', 'slate', 'smoke', 'wine'];
-
-        function isColor(str) {
-            if (!str || typeof str !== 'string') return false;
-            str = str.trim().toLowerCase();
-            if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(str)) return true;
-            if (colorNames.includes(str)) return true;
-            return false;
-        }
-
-        function getColorValue(str) {
-            if (!str) return '#ccc';
-            str = str.trim().toLowerCase();
-            if (/^#/.test(str)) return str;
-            return str;
-        }
-
-        let variantsHtml = '';
-        const firstVariant = variants[0];
-        const variantName = typeof firstVariant === 'string' ? firstVariant : (firstVariant.name || firstVariant.color || '');
-        const areColors = variants.every(v => {
-            const name = typeof v === 'string' ? v : (v.color || v.name || '');
-            return isColor(name);
-        });
-
-        if (areColors) {
-            const labelEl = `<div class="pd-variant-label">Color: <span class="selected-variant-name" id="selectedVariantName">${variantName}</span></div>`;
-            const swatches = variants.map((v, i) => {
-                const name = typeof v === 'string' ? v : (v.color || v.name || '');
-                const color = getColorValue(name);
-                return `<div class="pd-color-swatch ${i === 0 ? 'selected' : ''}" 
-                    style="background-color: ${color};" 
-                    title="${name}" 
-                    onclick="selectVariant(${i}, '${name.replace(/'/g, "\\'")}')">
-                </div>`;
-            }).join('');
-            variantsHtml = labelEl + `<div class="pd-variants-list">${swatches}</div>`;
-        } else {
-            const labelEl = `<div class="pd-variant-label">Style: <span class="selected-variant-name" id="selectedVariantName">${variantName}</span></div>`;
-            const pills = variants.map((v, i) => {
-                const name = typeof v === 'string' ? v : (v.name || '');
-                return `<div class="pd-variant-pill ${i === 0 ? 'selected' : ''}" 
-                    onclick="selectVariant(${i}, '${name.replace(/'/g, "\\'")}')">
-                ${name}</div>`;
-            }).join('');
-            variantsHtml = labelEl + `<div class="pd-variants-list">${pills}</div>`;
-        }
-
-        document.getElementById('pdVariantsList').innerHTML = variantsHtml;
-    } else {
-        varSec.hidden = true;
-    }
-
     // Reviews
     renderProductReviews(product);
 
@@ -3408,45 +3349,6 @@ function renderRelatedProducts(product) {
 }
 
 // ====== VARIANT / COLOR SELECTION ====== //
-window.selectVariant = function (index, variantName) {
-    // Update selected variant name label
-    const nameEl = document.getElementById('selectedVariantName');
-    if (nameEl) nameEl.textContent = variantName;
-
-    // Update visual selection state for color swatches
-    document.querySelectorAll('.pd-color-swatch').forEach((el, i) => {
-        el.classList.toggle('selected', i === index);
-    });
-
-    // Update visual selection state for text pills
-    document.querySelectorAll('.pd-variant-pill').forEach((el, i) => {
-        el.classList.toggle('selected', i === index);
-    });
-
-    // If the product has variant-specific images, swap to that image
-    if (currentPdProduct && currentPdProduct.proVariantId) {
-        const variant = currentPdProduct.proVariantId[index];
-        if (variant && typeof variant === 'object') {
-            // Check if variant has its own image
-            if (variant.image || variant.imageUrl) {
-                const varImg = variant.image || variant.imageUrl;
-                const pdImage = document.getElementById('pdImage');
-                if (pdImage) {
-                    pdImage.style.opacity = '0';
-                    setTimeout(() => {
-                        pdImage.src = typeof varImg === 'object' ? varImg.url : varImg;
-                        pdImage.onload = () => { pdImage.style.opacity = '1'; };
-                        pdImage.onerror = () => { pdImage.style.opacity = '1'; };
-                        setTimeout(() => { pdImage.style.opacity = '1'; }, 150);
-                    }, 200);
-                }
-            }
-        }
-    }
-
-    showToast(`Selected: ${variantName}`, 'info');
-}
-
 // ====== RECEIPT GENERATION & PDF DOWNLOAD ====== //
 let lastReceiptData = null;
 
