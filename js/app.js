@@ -3350,11 +3350,65 @@ function renderRelatedProducts(product) {
 
 // ====== VARIANT / COLOR SELECTION ====== //
 // ====== RECEIPT GENERATION & PDF DOWNLOAD ====== //
+
+/**
+ * The order id, in full, with a button to copy it.
+ *
+ * It used to be shown truncated to 12 characters and upper-cased. A database
+ * id is 24 characters, so a customer quoting what they saw handed support only
+ * half of it — and half an id cannot be looked up. Orders placed on the site
+ * were effectively unfindable in the admin panel for that reason alone.
+ */
+function renderOrderIdValue(orderId) {
+    const id = typeof orderId === 'string' ? orderId.trim() : '';
+
+    if (!id) {
+        return '<span class="value">Not available</span>';
+    }
+
+    return `<span class="value order-id-value">
+        <code class="order-id-text">${escapeHtml(id)}</code>
+        <button type="button" class="order-id-copy" data-order-id="${escapeHtml(id)}"
+                title="Copy order ID" aria-label="Copy order ID">Copy</button>
+    </span>`;
+}
+
+/** Copies an order id and confirms it, so the customer knows it worked. */
+async function copyOrderId(id) {
+    try {
+        await navigator.clipboard.writeText(id);
+        showToast('Order ID copied', 'success');
+    } catch (err) {
+        // Clipboard access is refused in some browsers unless the page is
+        // focused, and over plain http. Selecting the text is the fallback.
+        const el = document.querySelector(`.order-id-copy[data-order-id="${id}"]`)
+            ?.previousElementSibling;
+        if (el && window.getSelection) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        showToast('Select the ID and copy it', 'info');
+    }
+}
+
+// Delegated, so it keeps working for receipts rendered after this point.
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('.order-id-copy');
+    if (btn) copyOrderId(btn.dataset.orderId);
+});
+
 let lastReceiptData = null;
 
 function showReceipt(orderData, orderRes) {
     const receiptData = {
-        orderId: orderRes.data ? (orderRes.data._id || orderRes.data.orderId || 'N/A') : ('ORD-' + Date.now().toString(36).toUpperCase()),
+        // The real database id, never an invented one. This used to fall back
+        // to 'ORD-' + a timestamp when the response carried no data, which
+        // handed the customer a reference that exists nowhere — support could
+        // not find the order, because there was no such order.
+        orderId: (orderRes && orderRes.data && (orderRes.data._id || orderRes.data.orderId)) || '',
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         paymentMethod: formatPaymentMethod(orderData.paymentMethod),
@@ -3373,7 +3427,7 @@ function showReceipt(orderData, orderRes) {
     document.getElementById('receiptMeta').innerHTML = `
         <div class="receipt-meta-item">
             <span class="label">Order ID</span>
-            <span class="value">#${typeof receiptData.orderId === 'string' ? receiptData.orderId.substring(0, 12).toUpperCase() : receiptData.orderId}</span>
+            ${renderOrderIdValue(receiptData.orderId)}
         </div>
         <div class="receipt-meta-item">
             <span class="label">Date</span>
@@ -3496,7 +3550,9 @@ window.downloadReceiptPDF = function () {
         doc.setFillColor(247, 248, 248);
         doc.roundedRect(margin, y, contentW, 28, 3, 3, 'F');
 
-        const orderId = typeof data.orderId === 'string' ? data.orderId.substring(0, 12).toUpperCase() : data.orderId;
+        // Full id, not the first 12 characters: this is the reference a customer
+    // quotes to support, and half of one cannot be looked up.
+    const orderId = typeof data.orderId === 'string' ? data.orderId : (data.orderId || '');
         const metaItems = [
             ['Order ID', '#' + orderId],
             ['Date', data.date],
@@ -3700,7 +3756,7 @@ window.downloadOrderPDF = function(order) {
         
         const date = new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB');
         const metaItems = [
-            ['Order ID', '#' + (order._id || '').substring(0, 12).toUpperCase()],
+            ['Order ID', order._id || 'Not available'],
             ['Date', date],
             ['Payment', formatPaymentMethod(order.paymentMethod)],
             ['Customer', (currentUser && currentUser.name) ? currentUser.name : 'Customer']

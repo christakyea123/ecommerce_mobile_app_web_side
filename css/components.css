@@ -134,6 +134,74 @@
 .recently-viewed-scroll::-webkit-scrollbar { height: 4px; }
 .recently-viewed-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
+/* ── Order ID ────────────────────────────────────────────────────────────
+   Shown in full, with a copy button. It used to be truncated to 12 upper-case
+   characters, so a customer quoting what they saw gave support half an id —
+   and half an id cannot be looked up. Website orders were unfindable in the
+   admin panel for that reason alone. */
+.order-id-row,
+.order-id-value.order-id-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.order-id-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: #0f1111;
+  background: #f0f2f2;
+  border: 1px solid #d5d9d9;
+  border-radius: 4px;
+  padding: 2px 6px;
+  /* 24 characters is long on a phone; let it wrap rather than push the card
+     wider than the screen. */
+  word-break: break-all;
+  user-select: all;
+}
+
+.order-id-copy {
+  border: 1px solid #d5d9d9;
+  background: #fff;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  color: #0f1111;
+  /* A real tap target, not a 16px sliver. */
+  min-height: 28px;
+}
+
+.order-id-copy:hover { background: #f7fafa; border-color: #adb1b8; }
+.order-id-copy:active { background: #edfdff; }
+
+.order-id-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(8px);
+  background: #0f1111;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 100010;
+}
+
+.order-id-toast.is-shown {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-id-toast { transition: none; }
+}
+
 .rv-card { flex-shrink: 0; width: 150px; cursor: pointer; transition: transform 0.2s; text-align: center; }
 .rv-card:hover { transform: translateY(-3px); }
 .rv-card img { width: 150px; height: 150px; object-fit: contain; background: #f7f7f7; border-radius: 4px; border: 1px solid #e3e6e6; }

@@ -1,5 +1,52 @@
 // This page does not load app.js, so it carries its own copy. Every value that
 // reaches an innerHTML sink below goes through it.
+/**
+ * Copies an order id.
+ *
+ * Defined here rather than shared, because this page does not load app.js —
+ * calling into it would throw and take the whole orders list down with it.
+ */
+async function copyOrderId(id) {
+    try {
+        await navigator.clipboard.writeText(id);
+        alertCopied('Order ID copied');
+    } catch (err) {
+        // Clipboard access is refused over plain http and in some browsers
+        // when the page is not focused. Selecting the text is the fallback.
+        const el = document.querySelector(`.order-id-copy[data-order-id="${id}"]`)
+            ?.previousElementSibling;
+        if (el && window.getSelection) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        alertCopied('Select the ID and copy it');
+    }
+}
+
+/** A brief confirmation, so the copy is visibly acknowledged. */
+function alertCopied(message) {
+    let el = document.getElementById('orderIdToast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'orderIdToast';
+        el.className = 'order-id-toast';
+        document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.classList.add('is-shown');
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => el.classList.remove('is-shown'), 1800);
+}
+
+// Delegated, so it covers orders rendered after this runs.
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('.order-id-copy');
+    if (btn) copyOrderId(btn.dataset.orderId);
+});
+
 function escapeHtml(unsafe) {
     if (unsafe === null || unsafe === undefined) return '';
     return unsafe
@@ -120,7 +167,12 @@ function renderOrders(orders) {
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <div style="font-size:0.75rem; color:#565959; text-transform:uppercase;">Order # ${order._id.substring(0, 12).toUpperCase()}</div>
+                        <div style="font-size:0.75rem; color:#565959;">Order ID</div>
+                        <div class="order-id-row">
+                            <code class="order-id-text">${escapeHtml(order._id || '')}</code>
+                            <button type="button" class="order-id-copy" data-order-id="${escapeHtml(order._id || '')}"
+                                    title="Copy order ID" aria-label="Copy order ID">Copy</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -186,7 +238,7 @@ window.downloadOrderPDF = function(order) {
         
         const date = new Date(order.createdAt || Date.now()).toLocaleDateString('en-GB');
         const metaItems = [
-            ['Order ID', '#' + (order._id || '').substring(0, 12).toUpperCase()],
+            ['Order ID', order._id || 'Not available'],
             ['Date', date],
             ['Payment', formatPaymentMethod(order.paymentMethod)],
             ['Customer', (currentUser && currentUser.name) ? currentUser.name : 'Customer']
