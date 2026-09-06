@@ -21,6 +21,25 @@ describe('🧾 the order id a customer can quote', () => {
         expect(ordersJs).not.toMatch(/'ORD-' \+ Date\.now\(\)/);
     });
 
+    test('the profile modal shows the full id too', () => {
+        // It was truncated to 8 characters here — shorter still than the 12
+        // elsewhere — so the orders page and the profile disagreed about what
+        // a customer's own order number was.
+        expect(appJs).not.toMatch(/Order #\$\{o\._id \? o\._id\.substring/);
+
+        const card = appJs.slice(
+            appJs.indexOf('<div class="order-card">'),
+            appJs.indexOf('Download PDF')
+        );
+        expect(card).toMatch(/renderOrderIdValue\(o\._id\)/);
+    });
+
+    test('no order id anywhere is cut to 8 characters', () => {
+        for (const src of [appJs, ordersJs]) {
+            expect(src).not.toMatch(/substring\(0, 8\)/);
+        }
+    });
+
     test('the id shown to the customer is never truncated', () => {
         // Filenames may still be shortened — a .pdf name needs no full id —
         // so only the displayed values are checked here.

@@ -170,8 +170,12 @@ describe('a shared product link opens the product', () => {
 
 describe('the link a share produces', () => {
 
-    test('is the page path plus ?product=<id>, with no listing state', async () => {
+    test('is the preview endpoint for that product, with no listing state', async () => {
         // Sharing from a search results page must not carry ?q= along.
+        //
+        // The link points at the API, not this page: crawlers build their
+        // preview from the HTML at the URL and this site renders in JS, so a
+        // shared ?product= link produced the site-wide card every time.
         const { win, doc } = boot('https://glomek.com/index.html?q=chair', healthy);
         await sleep(700);
 
@@ -186,7 +190,7 @@ describe('the link a share produces', () => {
         await win.shareCurrentProduct();
 
         expect(shared).not.toBeNull();
-        expect(shared.url).toBe('https://glomek.com/index.html?product=P42');
+        expect(shared.url).toBe('https://api.glomek.com/p/P42');
         expect(shared.url).not.toContain('q=chair');
     });
 });

@@ -1860,9 +1860,12 @@ async function loadOrderHistory() {
 
         return `
             <div class="order-card">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem">
-                    <strong>Order #${o._id ? o._id.substring(0, 8) : 'N/A'}</strong>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.5rem">
+                    <strong>Order</strong>
                     <span class="order-status-badge ${statusClass}">${statusClass}</span>
+                </div>
+                <div style="margin-bottom:0.5rem;">
+                    ${renderOrderIdValue(o._id)}
                 </div>
                 <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.5rem;">${date}</div>
                 ${itemsHtml}
@@ -2463,7 +2466,13 @@ window.shareCurrentProduct = async function () {
     if (!product) return;
 
     const id = product._id || product.sId;
-    const url = `${window.location.origin}${window.location.pathname}?product=${encodeURIComponent(id)}`;
+    // Share the API's link, not this page's. WhatsApp and Facebook build their
+    // preview by reading the HTML at the URL, and this site renders in
+    // JavaScript — so a crawler asking for ?product=<id> saw only the
+    // site-wide title and the Glomek logo. Every shared product produced the
+    // same card, and none of them showed the product. /p/<id> serves the
+    // product's own name, price and photograph, then forwards the visitor here.
+    const url = `${BASE_URL}/p/${encodeURIComponent(id)}`;
     const shareData = {
         title: product.name,
         text: `${product.name} — ${formatPrice(product.offerPrice || product.price || 0)} on Glomek`,
@@ -3554,7 +3563,7 @@ window.downloadReceiptPDF = function () {
     // quotes to support, and half of one cannot be looked up.
     const orderId = typeof data.orderId === 'string' ? data.orderId : (data.orderId || '');
         const metaItems = [
-            ['Order ID', '#' + orderId],
+            ['Order ID', orderId || 'Not available'],
             ['Date', data.date],
             ['Payment', data.paymentMethod],
             ['Customer', data.customerName]

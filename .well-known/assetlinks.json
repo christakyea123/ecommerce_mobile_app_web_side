@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.glomek.ecomerce_mobile_app",
+      "sha256_cert_fingerprints": [
+        "24:65:CC:C6:09:9E:E7:84:57:4C:31:CD:B8:94:5C:91:76:52:15:77:84:68:2B:63:50:1E:FF:CD:34:31:5B:58",
+        "79:34:74:24:79:89:70:36:43:3F:41:B9:75:82:B8:C8:66:8B:D8:7F:B7:C3:77:4C:B0:BE:2B:4B:54:82:51:2A"
+      ]
+    }
+  }
+]

@@ -145,8 +145,12 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  justify-content: flex-end;
 }
+
+/* The orders page places this in a right-aligned column; the receipt and the
+   profile card read left to right like the rest of their content. */
+.order-id-row { justify-content: flex-end; }
+.order-id-value.order-id-value { justify-content: flex-start; }
 
 .order-id-text {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

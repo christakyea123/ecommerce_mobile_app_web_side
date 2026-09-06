@@ -334,7 +334,7 @@ describe('Paystack checkout + app shell', () => {
         win.__setPdProduct({ _id: 'pq1', name: 'Ankara Dress', offerPrice: 150 });
 
         await win.shareCurrentProduct();
-        expect(copied[0]).toContain('?product=pq1');
+        expect(copied[0]).toContain('/p/pq1');
     });
 
     // ── Security ────────────────────────────────────────────────────────
