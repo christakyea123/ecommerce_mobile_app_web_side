@@ -2366,12 +2366,30 @@ let currentPdImages = [];
 let currentPdIndex = 0;
 let currentPdProduct = null;
 
+/**
+ * Is this a full product, or one of the cut-down copies kept for a list?
+ *
+ * A recently-viewed entry holds only { _id, name, price, image } — a single
+ * image STRING, no images array, no description, no ratings. Opened as if it
+ * were a product it renders a broken image, "No description provided" and
+ * "0 ratings", with only the price correct. Shared links landed on exactly
+ * that whenever the visitor had viewed the item before, and it persists in
+ * localStorage, so it kept happening.
+ */
+function isFullProduct(p) {
+    return !!p && Array.isArray(p.images);
+}
+
 window.openProductDetails = async function (productId) {
-    // Search in featured, allProducts, or recommendations first (instant)
-    let product = state.products.find(p => (p._id || p.sId) === productId) ||
-        (state.allProducts || []).find(p => (p._id || p.sId) === productId) ||
-        state.recommendations.find(p => (p._id || p.sId) === productId) ||
-        state.recentlyViewed.find(r => r._id === productId);
+    // Search in featured, allProducts, or recommendations first (instant).
+    // Stubs are skipped: showing one instantly is worse than a brief skeleton,
+    // because it looks like the product genuinely has no photo or description.
+    let product = [
+        state.products.find(p => (p._id || p.sId) === productId),
+        (state.allProducts || []).find(p => (p._id || p.sId) === productId),
+        state.recommendations.find(p => (p._id || p.sId) === productId),
+        state.recentlyViewed.find(r => r._id === productId),
+    ].find(isFullProduct);
 
     // If no cached product at all, show a loading skeleton inside the modal while we fetch
     if (!product) {

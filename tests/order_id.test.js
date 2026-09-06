@@ -14,6 +14,51 @@ const appJs = fs.readFileSync(path.join(WEB, 'js', 'app.js'), 'utf8');
 const ordersJs = fs.readFileSync(path.join(WEB, 'js', 'orders.js'), 'utf8');
 const componentsCss = fs.readFileSync(path.join(WEB, 'css', 'components.css'), 'utf8');
 
+describe('🔗 a shared link must not open a stub', () => {
+    // A recently-viewed entry holds only { _id, name, price, image } - a single
+    // image STRING, no images array, no description, no ratings. Opened as if
+    // it were a product it renders a broken image, "No description provided"
+    // and "0 ratings", with only the price right. That is what a shared link
+    // showed whenever the visitor had viewed the item before, and it persists
+    // in localStorage so it kept happening.
+    test('only a full product satisfies the instant lookup', () => {
+        expect(appJs).toMatch(/function isFullProduct/);
+        expect(appJs).toMatch(/Array\.isArray\(p\.images\)/);
+    });
+
+    test('the cached sources are filtered through it', () => {
+        const fn = appJs.slice(
+            appJs.indexOf('window.openProductDetails = async function'),
+            appJs.indexOf('showPdLoadingSkeleton()')
+        );
+        expect(fn).toMatch(/\.find\(isFullProduct\)/);
+        // recentlyViewed may still be consulted - it just cannot win unless
+        // the entry happens to be a complete product.
+        expect(fn).toMatch(/recentlyViewed/);
+    });
+
+    test('a stub still falls through to the fetch path', () => {
+        const fn = appJs.slice(
+            appJs.indexOf('window.openProductDetails = async function'),
+            appJs.indexOf('// Populate immediately with cached data')
+        );
+        expect(fn).toMatch(/if \(!product\)/);
+        expect(fn).toMatch(/fetchProductById/);
+    });
+
+    test('recently-viewed entries are still only stubs, by design', () => {
+        // If this ever changes to store full products the filter above stops
+        // mattering - but until then it is the only thing standing between a
+        // shared link and an empty product page.
+        const tracker = appJs.slice(
+            appJs.indexOf('function trackRecentlyViewed'),
+            appJs.indexOf('renderRecentlyViewed();', appJs.indexOf('function trackRecentlyViewed'))
+        );
+        expect(tracker).toMatch(/const entry = \{/);
+        expect(tracker).not.toMatch(/images:/);
+    });
+});
+
 describe('🧾 the order id a customer can quote', () => {
     test('no invented order id survives anywhere', () => {
         // The fallback that produced an id no database row ever had.
